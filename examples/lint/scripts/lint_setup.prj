@@ -1,0 +1,40 @@
+##-- ==========================================================================
+##-- SpyGlass Lint Project File
+##-- ==========================================================================
+##-- This project file demonstrates how to set up a SpyGlass lint analysis.
+##-- Usage: spyglass -project lint_setup.prj -batch
+##-- ==========================================================================
+
+##-- Working directory for SpyGlass output
+set_option projectwdir ./spyglass_work
+
+##-- Read RTL design files
+read_file -type verilog {
+    ../rtl/counter_with_issues.v
+    ../rtl/counter_fixed.v
+    ../rtl/fsm_with_issues.v
+    ../rtl/fsm_fixed.v
+    ../rtl/memory_controller.v
+}
+
+##-- Set the top-level module to analyze
+##-- Change this to analyze different modules:
+##--   counter_with_issues  — shows lint violations
+##--   counter_fixed        — shows clean version
+##--   fsm_with_issues      — shows FSM-specific violations
+##--   fsm_fixed            — shows clean FSM
+##--   memory_controller    — shows clean design with parameters
+set_option top counter_with_issues
+
+##-- Enable SystemVerilog support (uncomment if needed)
+# set_option enableSV yes
+
+##-- Set include directories (uncomment and modify as needed)
+# set_option incdir {../rtl/includes}
+
+##-- Read waiver file (uncomment when waivers are ready)
+# read_file -type waiver ../waivers/lint_waivers.swl
+
+##-- Select and run lint goal
+current_goal lint/lint_rtl
+run_goal
