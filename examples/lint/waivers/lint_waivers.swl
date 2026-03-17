@@ -1,0 +1,58 @@
+##-- ==========================================================================
+##-- SpyGlass Lint Waiver File
+##-- ==========================================================================
+##-- This file demonstrates how to write waivers for lint violations.
+##-- Waivers suppress known, accepted violations from reports.
+##--
+##-- IMPORTANT: Every waiver MUST include a -comment with technical
+##-- justification. Waivers without comments should be rejected in review.
+##-- ==========================================================================
+
+##-- ---------------------------------------------------------------------------
+##-- Example 1: Waive unloaded signal (debug port)
+##-- ---------------------------------------------------------------------------
+##-- The debug_count register in counter_with_issues is intentionally
+##-- unloaded — it is used only for waveform debug during simulation.
+
+waive -rule W_0123 \
+    -module counter_with_issues \
+    -signal debug_count \
+    -comment "Debug-only register. Not connected in production. Used for waveform inspection during simulation."
+
+##-- ---------------------------------------------------------------------------
+##-- Example 2: Waive width mismatch (intentional truncation)
+##-- ---------------------------------------------------------------------------
+##-- In some designs, upper bits of a wider bus are intentionally discarded.
+
+# waive -rule W_0164 \
+#     -module counter_with_issues \
+#     -signal count \
+#     -comment "Upper 8 bits of load_value intentionally unused. Only lower byte used per protocol spec section 4.2."
+
+##-- ---------------------------------------------------------------------------
+##-- Example 3: Waive unreachable state (emergency state)
+##-- ---------------------------------------------------------------------------
+##-- The emergency state in the FSM is reached only through external
+##-- interrupt logic not visible at this hierarchy level.
+
+# waive -rule W_0551 \
+#     -module fsm_with_issues \
+#     -comment "Emergency state is reached via interrupt controller at SoC level."
+
+##-- ---------------------------------------------------------------------------
+##-- Example 4: Waive using regex patterns (multiple modules)
+##-- ---------------------------------------------------------------------------
+##-- All test-related modules intentionally have unloaded signals.
+
+# waive -rule W_0123 \
+#     -module {test_*} \
+#     -comment "Test infrastructure modules — unloaded signals are monitor points."
+
+##-- ---------------------------------------------------------------------------
+##-- Example 5: Waive gated clock in specific IP
+##-- ---------------------------------------------------------------------------
+##-- Third-party IP uses intentional clock gating that has been verified.
+
+# waive -rule W_0445 \
+#     -module legacy_ip_wrapper \
+#     -comment "Verified third-party IP. Clock gating reviewed in IP qualification report REF-2024-001."

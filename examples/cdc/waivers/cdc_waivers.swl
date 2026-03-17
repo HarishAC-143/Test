@@ -1,0 +1,84 @@
+##-- ==========================================================================
+##-- SpyGlass CDC Waiver File
+##-- ==========================================================================
+##-- This file demonstrates how to write waivers for CDC violations.
+##--
+##-- CDC waivers require MORE justification than lint waivers because
+##-- incorrect CDC handling can cause intermittent silicon failures that
+##-- are extremely difficult to debug.
+##--
+##-- Waiver review checklist:
+##--   [ ] Technical justification is specific and verifiable
+##--   [ ] Alternative verification method is described (STA, formal, etc.)
+##--   [ ] Reviewed by CDC expert
+##--   [ ] Documented in design specification
+##-- ==========================================================================
+
+##-- ---------------------------------------------------------------------------
+##-- Example 1: Quasi-static configuration register
+##-- ---------------------------------------------------------------------------
+##-- Configuration registers that are written once during initialization
+##-- and remain stable during normal operation do not need synchronization.
+##-- The system must guarantee no clock domain crossing occurs during writes.
+
+# waive -rule Ac_cdc01 \
+#     -from {u_config/cfg_reg[*]} \
+#     -to   {u_core/sync_cfg[*]} \
+#     -comment "Quasi-static register. Written only during system init (boot ROM). \
+#               Software protocol guarantees register is stable before core is released \
+#               from reset. Verified by boot sequence review (JIRA-1234)."
+
+##-- ---------------------------------------------------------------------------
+##-- Example 2: Gray-coded FIFO pointers
+##-- ---------------------------------------------------------------------------
+##-- SpyGlass may flag Gray-coded pointers as multi-bit CDC. This waiver
+##-- tells SpyGlass that the encoding is intentional and safe.
+
+# waive -rule Ac_cdc03 \
+#     -from {u_fifo/wr_ptr_gray[*]} \
+#     -to   {u_fifo/wr_ptr_gray_rd_sync1[*]} \
+#     -comment "Gray-coded write pointer. Only 1 bit changes per increment. \
+#               Two-flop synchronizer is sufficient. Gray coding verified by \
+#               formal equivalence check."
+
+# waive -rule Ac_cdc03 \
+#     -from {u_fifo/rd_ptr_gray[*]} \
+#     -to   {u_fifo/rd_ptr_gray_wr_sync1[*]} \
+#     -comment "Gray-coded read pointer. Same justification as write pointer."
+
+##-- ---------------------------------------------------------------------------
+##-- Example 3: Custom synchronizer cell
+##-- ---------------------------------------------------------------------------
+##-- When using a library-specific synchronizer cell that SpyGlass doesn't
+##-- recognize as a synchronizer.
+
+# waive -rule Ac_cdc01 \
+#     -module custom_sync_wrapper \
+#     -comment "Uses TSMC 7nm SDFFQ synchronizer cell (lib: tcbn07_sync). \
+#               Cell is characterized for metastability resolution. \
+#               MTBF > 1000 years at 1 GHz. See lib datasheet section 5.3."
+
+##-- ---------------------------------------------------------------------------
+##-- Example 4: Reconvergence with MUX recapture
+##-- ---------------------------------------------------------------------------
+##-- Reconvergent paths that are safely handled by a MUX recapture scheme.
+
+# waive -rule Ac_conv01 \
+#     -from {u_src/data_reg[*]} \
+#     -to   {u_dst/mux_recapture[*]} \
+#     -comment "Reconvergence resolved by MUX recapture in destination domain. \
+#               All data bits are re-sampled atomically after the valid \
+#               synchronizer settles. Verified by CDC formal (Questa CDC)."
+
+##-- ---------------------------------------------------------------------------
+##-- Example 5: Known safe crossing with timing constraint
+##-- ---------------------------------------------------------------------------
+##-- Some crossings are safe because STA guarantees sufficient setup/hold
+##-- margin (e.g., slow-to-fast crossing with multi-cycle path constraint).
+
+# waive -rule Ac_cdc01 \
+#     -from {u_slow/status_reg} \
+#     -to   {u_fast/status_capture} \
+#     -comment "Slow-to-fast crossing with 10x frequency ratio. \
+#               STA multi-cycle path constraint ensures signal is stable \
+#               for 10 fast clock cycles. See SDC constraint MCP_STATUS_001."

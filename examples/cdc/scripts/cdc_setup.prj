@@ -1,0 +1,48 @@
+##-- ==========================================================================
+##-- SpyGlass CDC Project File
+##-- ==========================================================================
+##-- This project file demonstrates how to set up a SpyGlass CDC analysis.
+##-- Usage: spyglass -project cdc_setup.prj -batch
+##-- ==========================================================================
+
+##-- Working directory for SpyGlass output
+set_option projectwdir ./spyglass_work
+
+##-- Read RTL design files
+read_file -type verilog {
+    ../rtl/cdc_sync_examples.v
+    ../rtl/async_fifo.v
+    ../rtl/pulse_synchronizer.v
+    ../rtl/handshake_sync.v
+}
+
+##-- Read SGDC constraint files
+read_file -type sgdc {
+    ../constraints/clock_definitions.sgdc
+    ../constraints/cdc_constraints.sgdc
+}
+
+##-- Set the top-level module to analyze
+##-- Options:
+##--   async_fifo              — complete async FIFO (recommended first)
+##--   pulse_synchronizer      — pulse crossing example
+##--   pulse_synchronizer_safe — pulse with busy feedback
+##--   handshake_sync          — handshake protocol example
+set_option top async_fifo
+
+##-- Read waiver file (uncomment when waivers are ready)
+# read_file -type waiver ../waivers/cdc_waivers.swl
+
+##-- =========================================================================
+##-- Run CDC Goals (in recommended order)
+##-- =========================================================================
+
+##-- Step 1: Structural CDC analysis
+##-- Checks for missing synchronizers, multi-bit crossings, etc.
+current_goal cdc/cdc_verify_struct
+run_goal
+
+##-- Step 2: Full CDC verification (structural + protocol)
+##-- Adds protocol checks: pulse width, handshake integrity, FIFO analysis
+current_goal cdc/cdc_verify
+run_goal
