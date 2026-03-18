@@ -1,0 +1,105 @@
+# =============================================================================
+# thresholds.yaml — Pass/fail thresholds for regression testing
+# =============================================================================
+# Defines acceptable limits for resource usage, timing margins, warning
+# counts, and build times. The regression framework fails tests that
+# exceed these thresholds.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Resource budgets (percentage of device capacity)
+# ---------------------------------------------------------------------------
+resource_budgets:
+  # Maximum ALM utilization (percentage). Designs above this level
+  # have difficulty with timing closure and are at risk of fitter failure.
+  alm_usage_percent: 80
+
+  # Maximum register count. An absolute cap to catch unintended
+  # register duplication or state explosion.
+  register_count_max: 50000
+
+  # Maximum memory bits. Prevents accidental inference of large RAMs
+  # that might not fit in the target device.
+  memory_bits_max: 500000
+
+  # Maximum DSP blocks. Multiplication-heavy designs can exhaust
+  # DSP resources; this cap prevents resource overrun.
+  dsp_blocks_max: 20
+
+  # Maximum I/O pin usage (percentage).
+  pin_usage_percent: 90
+
+# ---------------------------------------------------------------------------
+# Timing thresholds
+# ---------------------------------------------------------------------------
+timing:
+  # Minimum acceptable setup slack (ns). Negative means timing failure.
+  # Set to a small positive value to maintain margin.
+  min_setup_slack_ns: 0.100
+
+  # Minimum acceptable hold slack (ns).
+  min_hold_slack_ns: 0.050
+
+  # Minimum Fmax (MHz). Fail if the achieved Fmax is below this.
+  # Set based on your target clock frequency + margin.
+  min_fmax_mhz: 100.0
+
+  # Maximum number of unconstrained paths. Should always be zero
+  # in a properly constrained design.
+  max_unconstrained_paths: 0
+
+  # Slack margin percentage. Warn if slack is positive but less than
+  # this percentage of the clock period.
+  slack_margin_warn_pct: 10.0
+
+# ---------------------------------------------------------------------------
+# Warning thresholds
+# ---------------------------------------------------------------------------
+warnings:
+  # Maximum total warnings allowed before the build is flagged.
+  max_warnings: 50
+
+  # Maximum critical warnings. Critical warnings often indicate
+  # real problems (e.g., inferred latches, missing constraints).
+  max_critical_warnings: 0
+
+  # Specific warning IDs that should cause an immediate failure.
+  # These are Quartus message IDs for common serious issues.
+  fatal_warning_ids:
+    - "10036"   # Inferred latch
+    - "10230"   # Verilog HDL assignment width mismatch
+    - "13024"   # Output pins stuck at GND or VCC
+    - "332060"  # Node has no output port connection
+
+# ---------------------------------------------------------------------------
+# Build time thresholds (seconds)
+# ---------------------------------------------------------------------------
+build_time:
+  # Maximum synthesis time
+  max_synthesis_s: 600
+
+  # Maximum fitter time
+  max_fitter_s: 1800
+
+  # Maximum total compilation time
+  max_total_s: 3600
+
+# ---------------------------------------------------------------------------
+# Trend regression thresholds
+# ---------------------------------------------------------------------------
+# Used by trend_analysis.py to detect metric degradation over time.
+trend:
+  # Fail if pass rate drops by more than this percentage between runs
+  pass_rate_drop_pct: 5.0
+
+  # Fail if Fmax drops by more than this many MHz between runs
+  fmax_drop_mhz: 5.0
+
+  # Warn if ALM utilization increases by more than this percentage
+  alm_increase_pct: 5.0
+
+  # Warn if warning count increases by more than this number
+  warning_increase: 10
+
+  # Warn if build time increases by more than this percentage
+  build_time_increase_pct: 20.0

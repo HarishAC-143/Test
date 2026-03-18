@@ -1,0 +1,254 @@
+# =============================================================================
+# GitHub Actions workflow for Altera FPGA Regression Testing
+# =============================================================================
+# Triggers:
+#   - Push to main: Full regression
+#   - Pull request: Smoke test only
+#   - Scheduled: Nightly full regression at 2 AM UTC
+#   - Manual: Configurable suite and device
+#
+# Requirements:
+#   - Self-hosted runner with Quartus Prime and ModelSim installed
+#   - QUARTUS_ROOTDIR environment variable set on the runner
+#   - License server accessible from the runner
+# =============================================================================
+
+name: FPGA Regression
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'examples/rtl/**'
+      - 'examples/constraints/**'
+      - 'examples/testbench/**'
+
+  pull_request:
+    branches: [main]
+    paths:
+      - 'examples/rtl/**'
+      - 'examples/constraints/**'
+      - 'examples/testbench/**'
+
+  schedule:
+    # Nightly at 2:00 AM UTC
+    - cron: '0 2 * * *'
+
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: 'Test suite to run'
+        required: true
+        default: 'full'
+        type: choice
+        options:
+          - smoke
+          - compile
+          - sim
+          - full
+          - all
+      device:
+        description: 'Target device'
+        required: true
+        default: 'cyclone_v'
+        type: choice
+        options:
+          - cyclone_v
+          - cyclone10
+          - max10
+          - all
+      jobs:
+        description: 'Parallel jobs'
+        required: false
+        default: '2'
+        type: string
+
+env:
+  QUARTUS_ROOTDIR: /opt/intelFPGA/23.1/quartus
+  MODELSIM_ROOT: /opt/intelFPGA/23.1/modelsim_ase
+  LM_LICENSE_FILE: 1800@license-server.internal
+
+jobs:
+  # ===========================================================================
+  # Job 1: Smoke Test (runs on every PR)
+  # ===========================================================================
+  smoke-test:
+    if: github.event_name == 'pull_request'
+    runs-on: [self-hosted, fpga-builder]
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up environment
+        run: |
+          export PATH="${QUARTUS_ROOTDIR}/bin:${MODELSIM_ROOT}/bin:${PATH}"
+          echo "PATH=${PATH}" >> $GITHUB_ENV
+          quartus_sh --version
+          echo "Environment ready."
+
+      - name: Run smoke test
+        run: |
+          make smoke DEVICE=cyclone_v 2>&1 | tee smoke_test.log
+        continue-on-error: false
+
+      - name: Run simulation tests
+        run: |
+          make sim 2>&1 | tee sim_test.log
+        continue-on-error: true
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test-logs
+          path: |
+            smoke_test.log
+            sim_test.log
+            build/
+
+      - name: Post PR comment
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let status = '✅ PASSED';
+            try {
+              const log = fs.readFileSync('smoke_test.log', 'utf8');
+              if (log.includes('FAILED')) {
+                status = '❌ FAILED';
+              }
+            } catch (e) {
+              status = '⚠️ UNKNOWN';
+            }
+
+            const body = `## FPGA Smoke Test Results
+
+            | Check | Status |
+            |-------|--------|
+            | Synthesis | ${status} |
+
+            *Triggered by commit ${context.sha.substring(0, 7)}*`;
+
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
+
+  # ===========================================================================
+  # Job 2: Full Regression (nightly + push to main)
+  # ===========================================================================
+  full-regression:
+    if: >
+      github.event_name == 'push' ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: [self-hosted, fpga-builder]
+    timeout-minutes: 240
+
+    strategy:
+      fail-fast: false
+      matrix:
+        device: [cyclone_v]
+        include:
+          - device: cyclone_v
+            part: 5CEBA4F23C7
+            family: "Cyclone V"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up environment
+        run: |
+          export PATH="${QUARTUS_ROOTDIR}/bin:${MODELSIM_ROOT}/bin:${PATH}"
+          echo "PATH=${PATH}" >> $GITHUB_ENV
+
+      - name: Determine test parameters
+        id: params
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "suite=${{ github.event.inputs.suite }}" >> $GITHUB_OUTPUT
+            echo "device=${{ github.event.inputs.device }}" >> $GITHUB_OUTPUT
+            echo "jobs=${{ github.event.inputs.jobs }}" >> $GITHUB_OUTPUT
+          else
+            echo "suite=full" >> $GITHUB_OUTPUT
+            echo "device=${{ matrix.device }}" >> $GITHUB_OUTPUT
+            echo "jobs=2" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run regression
+        run: |
+          chmod +x examples/scripts/run_regression.sh
+          chmod +x examples/scripts/run_simulation.sh
+          bash examples/scripts/run_regression.sh \
+            --suite ${{ steps.params.outputs.suite }} \
+            --device ${{ steps.params.outputs.device }} \
+            --jobs ${{ steps.params.outputs.jobs }} \
+            --report html \
+            2>&1 | tee regression.log
+
+      - name: Parse results
+        if: always()
+        run: |
+          if ls build_*/results.csv 1>/dev/null 2>&1; then
+            python3 examples/scripts/gen_report.py \
+              --input $(ls -t build_*/results.csv | head -1) \
+              --output examples/reports/regression_report.html \
+              --format html
+          fi
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-reports-${{ matrix.device }}
+          path: |
+            regression.log
+            examples/reports/
+            build_*/
+
+      - name: Check for failures
+        if: always()
+        run: |
+          if grep -q "REGRESSION FAILED" regression.log 2>/dev/null; then
+            echo "::error::Regression failed for ${{ matrix.device }}"
+            exit 1
+          fi
+
+  # ===========================================================================
+  # Job 3: Trend Analysis (after full regression)
+  # ===========================================================================
+  trend-analysis:
+    needs: full-regression
+    if: always() && github.event_name == 'schedule'
+    runs-on: [self-hosted, fpga-builder]
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download regression results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: regression-reports-*
+          merge-multiple: true
+
+      - name: Run trend analysis
+        run: |
+          python3 examples/scripts/trend_analysis.py \
+            --data-dir examples/reports/history \
+            --output examples/reports/trend_report.html \
+            --check
+
+      - name: Upload trend report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trend-report
+          path: examples/reports/trend_report.html

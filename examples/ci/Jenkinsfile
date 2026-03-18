@@ -1,0 +1,224 @@
+// =============================================================================
+// Jenkinsfile — Declarative pipeline for Altera FPGA Regression Testing
+// =============================================================================
+// Requirements:
+//   - Jenkins agent with label 'fpga-builder'
+//   - Quartus Prime installed at QUARTUS_ROOTDIR
+//   - ModelSim installed at MODELSIM_ROOT
+//   - Python 3.8+ available on the agent
+//   - License server accessible
+// =============================================================================
+
+pipeline {
+    agent {
+        label 'fpga-builder'
+    }
+
+    parameters {
+        choice(
+            name: 'SUITE',
+            choices: ['smoke', 'compile', 'sim', 'full', 'all'],
+            description: 'Regression test suite to run'
+        )
+        choice(
+            name: 'DEVICE',
+            choices: ['cyclone_v', 'cyclone10', 'max10', 'all'],
+            description: 'Target FPGA device'
+        )
+        string(
+            name: 'JOBS',
+            defaultValue: '2',
+            description: 'Number of parallel compilation jobs'
+        )
+        booleanParam(
+            name: 'GENERATE_REPORT',
+            defaultValue: true,
+            description: 'Generate HTML regression report'
+        )
+        booleanParam(
+            name: 'TREND_ANALYSIS',
+            defaultValue: false,
+            description: 'Run trend analysis against historical data'
+        )
+    }
+
+    environment {
+        QUARTUS_ROOTDIR = '/opt/intelFPGA/23.1/quartus'
+        MODELSIM_ROOT   = '/opt/intelFPGA/23.1/modelsim_ase'
+        LM_LICENSE_FILE = '1800@license-server.internal'
+        PATH            = "${QUARTUS_ROOTDIR}/bin:${MODELSIM_ROOT}/bin:${env.PATH}"
+    }
+
+    options {
+        timeout(time: 4, unit: 'HOURS')
+        timestamps()
+        buildDiscarder(logRotator(numToKeepStr: '30'))
+        disableConcurrentBuilds()
+    }
+
+    triggers {
+        // Nightly regression at 2 AM on weekdays
+        cron('H 2 * * 1-5')
+    }
+
+    stages {
+        stage('Environment Check') {
+            steps {
+                echo "Checking build environment..."
+                sh '''
+                    echo "Quartus: $(quartus_sh --version 2>/dev/null | head -1)"
+                    echo "Python:  $(python3 --version 2>&1)"
+                    echo "Make:    $(make --version | head -1)"
+                '''
+            }
+        }
+
+        stage('Setup') {
+            steps {
+                echo "Setting up build directories..."
+                sh '''
+                    mkdir -p build
+                    mkdir -p examples/reports
+                    chmod +x examples/scripts/*.sh
+                '''
+            }
+        }
+
+        stage('Smoke Test') {
+            when {
+                expression { params.SUITE in ['smoke', 'full', 'all'] }
+            }
+            steps {
+                echo "Running smoke test..."
+                sh """
+                    bash examples/scripts/run_regression.sh \\
+                        --suite smoke \\
+                        --device ${params.DEVICE} \\
+                        --report text \\
+                        2>&1 | tee smoke_results.log
+                """
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'smoke_results.log', allowEmptyArchive: true
+                }
+            }
+        }
+
+        stage('Compilation') {
+            when {
+                expression { params.SUITE in ['compile', 'full', 'all'] }
+            }
+            steps {
+                echo "Running full compilation..."
+                sh """
+                    bash examples/scripts/run_regression.sh \\
+                        --suite compile \\
+                        --device ${params.DEVICE} \\
+                        --jobs ${params.JOBS} \\
+                        --report text \\
+                        2>&1 | tee compile_results.log
+                """
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'compile_results.log', allowEmptyArchive: true
+                }
+            }
+        }
+
+        stage('Simulation') {
+            when {
+                expression { params.SUITE in ['sim', 'full', 'all'] }
+            }
+            steps {
+                echo "Running simulations..."
+                sh """
+                    bash examples/scripts/run_regression.sh \\
+                        --suite sim \\
+                        --report text \\
+                        2>&1 | tee sim_results.log
+                """
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'sim_results.log', allowEmptyArchive: true
+                }
+            }
+        }
+
+        stage('Report Generation') {
+            when {
+                expression { params.GENERATE_REPORT }
+            }
+            steps {
+                echo "Generating reports..."
+                sh '''
+                    CSV_FILE=$(ls -t build_*/results.csv 2>/dev/null | head -1)
+                    if [ -n "$CSV_FILE" ]; then
+                        python3 examples/scripts/gen_report.py \
+                            --input "$CSV_FILE" \
+                            --output examples/reports/regression_report.html \
+                            --format html
+                    else
+                        echo "No results CSV found; skipping report generation."
+                    fi
+                '''
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'examples/reports/*.html', allowEmptyArchive: true
+                    publishHTML(target: [
+                        allowMissing: true,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: 'examples/reports',
+                        reportFiles: 'regression_report.html',
+                        reportName: 'Regression Report'
+                    ])
+                }
+            }
+        }
+
+        stage('Trend Analysis') {
+            when {
+                expression { params.TREND_ANALYSIS }
+            }
+            steps {
+                echo "Running trend analysis..."
+                sh '''
+                    python3 examples/scripts/trend_analysis.py \
+                        --data-dir examples/reports/history \
+                        --output examples/reports/trend_report.html \
+                        --check || true
+                '''
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'examples/reports/trend_report.html', allowEmptyArchive: true
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Regression PASSED.'
+        }
+        failure {
+            echo 'Regression FAILED.'
+            // Uncomment to enable email notifications:
+            // mail to: 'fpga-team@example.com',
+            //      subject: "FPGA Regression FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+            //      body: "Check: ${env.BUILD_URL}"
+        }
+        always {
+            echo "Archiving build artifacts..."
+            archiveArtifacts artifacts: 'build*/**', allowEmptyArchive: true
+        }
+        cleanup {
+            echo "Cleaning workspace..."
+            sh 'make clean || true'
+        }
+    }
+}

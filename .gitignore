@@ -1,0 +1,47 @@
+# Build artifacts
+build/
+build_*/
+db/
+incremental_db/
+output_files/
+simulation/
+sim_work/
+regression_builds/
+
+# Quartus project files (generated)
+*.qws
+*.bak
+
+# Quartus generated databases
+*.sof
+*.pof
+*.jdi
+*.pin
+*.smsg
+*.summary
+
+# Report files (generated, keep reports/.gitkeep)
+examples/reports/*.html
+examples/reports/*.json
+examples/reports/*.txt
+!examples/reports/.gitkeep
+
+# ModelSim work libraries
+work/
+*.wlf
+transcript
+*.vstf
+*.ucdb
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~

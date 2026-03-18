@@ -1,0 +1,134 @@
+# =============================================================================
+# regression.yaml — Regression test suite configuration
+# =============================================================================
+# Defines test suites, parameter sweeps, and test configurations
+# for the FPGA regression framework.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Global settings
+# ---------------------------------------------------------------------------
+global:
+  top_module: top_wrapper
+  default_device: cyclone_v
+  timeout_s: 3600
+  parallel_jobs: 2
+  report_format: html
+  log_level: info
+
+# ---------------------------------------------------------------------------
+# Test suites
+# ---------------------------------------------------------------------------
+suites:
+  smoke:
+    description: "Quick synthesis-only verification"
+    stages: [synthesis]
+    devices: [cyclone_v]
+    timeout_s: 300
+    parameters:
+      - name: default
+        values:
+          COUNTER_WIDTH: 8
+          FIFO_DEPTH: 16
+          ALU_WIDTH: 16
+
+  compile:
+    description: "Full compilation through assembler"
+    stages: [synthesis, fitter, timing, assembler]
+    devices: [cyclone_v]
+    timeout_s: 1800
+    parameters:
+      - name: default
+        values:
+          COUNTER_WIDTH: 8
+          FIFO_DEPTH: 16
+          ALU_WIDTH: 16
+
+  sim:
+    description: "RTL simulation suite"
+    testbenches:
+      - name: tb_counter
+        timeout_s: 120
+        description: "Counter functionality and edge cases"
+      - name: tb_fifo_sync
+        timeout_s: 120
+        description: "FIFO data integrity and status flags"
+      - name: tb_alu
+        timeout_s: 120
+        description: "ALU operations and flag generation"
+
+  full:
+    description: "Complete regression — compilation + simulation"
+    stages: [synthesis, fitter, timing, assembler]
+    devices: [cyclone_v]
+    timeout_s: 3600
+    parameters:
+      - name: default
+        values:
+          COUNTER_WIDTH: 8
+          FIFO_DEPTH: 16
+          ALU_WIDTH: 16
+      - name: wide
+        values:
+          COUNTER_WIDTH: 16
+          FIFO_DEPTH: 16
+          ALU_WIDTH: 32
+      - name: deep_fifo
+        values:
+          COUNTER_WIDTH: 8
+          FIFO_DEPTH: 64
+          ALU_WIDTH: 16
+    testbenches:
+      - name: tb_counter
+      - name: tb_fifo_sync
+      - name: tb_alu
+
+  multi_device:
+    description: "Multi-device portability regression"
+    stages: [synthesis, fitter, timing]
+    devices: [cyclone_v, cyclone10, max10]
+    timeout_s: 7200
+    parameters:
+      - name: default
+        values:
+          COUNTER_WIDTH: 8
+          FIFO_DEPTH: 16
+          ALU_WIDTH: 16
+
+  parameter_sweep:
+    description: "Exhaustive parameter sweep"
+    stages: [synthesis, fitter, timing]
+    devices: [cyclone_v]
+    timeout_s: 14400
+    parameters:
+      - name: narrow_8bit
+        values: { COUNTER_WIDTH: 8,  FIFO_DEPTH: 16, ALU_WIDTH: 8 }
+      - name: default_16bit
+        values: { COUNTER_WIDTH: 16, FIFO_DEPTH: 16, ALU_WIDTH: 16 }
+      - name: wide_32bit
+        values: { COUNTER_WIDTH: 32, FIFO_DEPTH: 16, ALU_WIDTH: 32 }
+      - name: deep_fifo_32
+        values: { COUNTER_WIDTH: 8,  FIFO_DEPTH: 32, ALU_WIDTH: 16 }
+      - name: deep_fifo_128
+        values: { COUNTER_WIDTH: 8,  FIFO_DEPTH: 128, ALU_WIDTH: 16 }
+      - name: deep_fifo_256
+        values: { COUNTER_WIDTH: 8,  FIFO_DEPTH: 256, ALU_WIDTH: 16 }
+
+# ---------------------------------------------------------------------------
+# Seed sweep configuration
+# ---------------------------------------------------------------------------
+seed_sweep:
+  enabled: false
+  seeds: [1, 2, 3, 4, 5]
+  select: best_fmax
+
+# ---------------------------------------------------------------------------
+# Quartus optimization modes to explore
+# ---------------------------------------------------------------------------
+design_space_exploration:
+  enabled: false
+  modes:
+    - BALANCED
+    - HIGH_PERFORMANCE_EFFORT
+    - AGGRESSIVE_AREA
+    - AGGRESSIVE_PERFORMANCE

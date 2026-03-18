@@ -1,0 +1,117 @@
+# =============================================================================
+# devices.yaml — Target FPGA device definitions
+# =============================================================================
+# Maps logical device names to Quartus part numbers and characteristics.
+# Used by the regression framework to iterate over target devices.
+# =============================================================================
+
+devices:
+  # ---------------------------------------------------------------------------
+  # Cyclone V family (28 nm)
+  # ---------------------------------------------------------------------------
+  cyclone_v:
+    part: "5CEBA4F23C7"
+    family: "Cyclone V"
+    speed_grade: "7"
+    package: "FBGA-484"
+    alm_count: 18480
+    registers: 73920
+    memory_bits: 3153920
+    dsp_blocks: 66
+    max_io_pins: 224
+    description: "Cyclone V E A4 — mid-range, general purpose"
+    notes: "Primary regression target"
+
+  cyclone_v_small:
+    part: "5CEBA2F17A7"
+    family: "Cyclone V"
+    speed_grade: "7"
+    package: "FBGA-256"
+    alm_count: 9430
+    registers: 37720
+    memory_bits: 1677312
+    dsp_blocks: 25
+    max_io_pins: 128
+    description: "Cyclone V E A2 — small, resource-constrained"
+    notes: "Tests resource-constrained builds"
+
+  cyclone_v_large:
+    part: "5CEBA9F31C6"
+    family: "Cyclone V"
+    speed_grade: "6"
+    package: "FBGA-896"
+    alm_count: 113560
+    registers: 454240
+    memory_bits: 12492800
+    dsp_blocks: 342
+    max_io_pins: 480
+    description: "Cyclone V E A9 — large, high-performance"
+
+  # ---------------------------------------------------------------------------
+  # Cyclone 10 LP family (60 nm, low-power successor to Cyclone IV)
+  # ---------------------------------------------------------------------------
+  cyclone10:
+    part: "10CL025YU256I7G"
+    family: "Cyclone 10 LP"
+    speed_grade: "7"
+    package: "UBGA-256"
+    alm_count: 25000
+    description: "Cyclone 10 LP 025 — mid-range"
+
+  cyclone10_small:
+    part: "10CL006YE144C8G"
+    family: "Cyclone 10 LP"
+    speed_grade: "8"
+    package: "EQFP-144"
+    alm_count: 6272
+    description: "Cyclone 10 LP 006 — small, cost-optimized"
+
+  # ---------------------------------------------------------------------------
+  # MAX 10 family (55 nm, non-volatile, single-chip)
+  # ---------------------------------------------------------------------------
+  max10:
+    part: "10M16SAE144I7G"
+    family: "MAX 10"
+    speed_grade: "7"
+    package: "EQFP-144"
+    alm_count: 16000
+    description: "MAX 10 016 — mid-range, instant-on"
+
+  max10_small:
+    part: "10M02SCE144I7G"
+    family: "MAX 10"
+    speed_grade: "7"
+    package: "EQFP-144"
+    alm_count: 2304
+    description: "MAX 10 002 — smallest, very constrained"
+
+  max10_large:
+    part: "10M50DAF484C6GES"
+    family: "MAX 10"
+    speed_grade: "6"
+    package: "FBGA-484"
+    alm_count: 50000
+    description: "MAX 10 050 — largest MAX 10"
+
+# ---------------------------------------------------------------------------
+# Default device for regression
+# ---------------------------------------------------------------------------
+default_device: cyclone_v
+
+# ---------------------------------------------------------------------------
+# Device groups (for multi-device regression)
+# ---------------------------------------------------------------------------
+groups:
+  low_cost:
+    - cyclone10_small
+    - max10_small
+  mid_range:
+    - cyclone_v
+    - cyclone10
+    - max10
+  high_performance:
+    - cyclone_v_large
+  all_cyclone_v:
+    - cyclone_v_small
+    - cyclone_v
+    - cyclone_v_large
