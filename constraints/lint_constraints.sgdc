@@ -1,0 +1,33 @@
+#=============================================================================
+# SpyGlass Lint Constraints (SGDC Format)
+#
+# These constraints help SpyGlass understand design intent for lint
+# analysis, reducing false positives.
+#=============================================================================
+
+current_design counter_top
+
+#--- Clock Definitions ---
+# Even for lint-only runs, defining clocks helps SpyGlass identify
+# clock-related issues (gated clocks, clock as data, etc.)
+clock -name clk -domain clk_domain -edge {0 5}
+
+#--- Reset Definitions ---
+# Identify reset signals so SpyGlass can check reset usage
+reset -name rst_n -value 0        ;# Active-low async reset
+
+#--- Quasi-Static Signals ---
+# Signals that change only during configuration/reset and are
+# effectively constant during normal operation.
+# quasi_static -name config_mode
+
+#--- Input Constraints ---
+# Constrain input ports to avoid false undriven warnings
+# on intentionally tied-off inputs
+# constant -name tie_low -value 0
+# constant -name tie_high -value 1
+
+#--- Abstract Modules ---
+# Black-box modules that are verified separately
+# abstract_port -module external_ip -port clk -type clock
+# abstract_port -module external_ip -port rst -type reset

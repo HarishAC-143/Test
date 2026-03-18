@@ -1,0 +1,48 @@
+#=============================================================================
+# SpyGlass Lint Waiver File
+#
+# Waivers formally acknowledge known violations that have been reviewed
+# and determined to be acceptable. Each waiver MUST include a comment
+# explaining why the violation is waived.
+#
+# Waiver Syntax:
+#   waive -rule <RULE_ID> [filters...] -comment "reason"
+#
+# Common Filters:
+#   -module <name>     - Restrict to specific module
+#   -signal <name>     - Restrict to specific signal
+#   -from <signal>     - Source signal (for CDC)
+#   -to <signal>       - Destination signal (for CDC)
+#
+# Wildcards:
+#   *  matches any sequence of characters
+#   ?  matches any single character
+#=============================================================================
+
+#--- Unloaded Debug Signals ---
+# Debug outputs are intentionally unloaded in production configurations.
+# They connect to debug infrastructure (JTAG, trace) not in this netlist.
+waive -rule W_240 -module counter_top -signal overflow \
+    -comment "Overflow flag is monitored by debug infrastructure not present in this netlist"
+
+waive -rule W_240 -module counter_top -signal debug_state \
+    -comment "Debug state port connects to trace logic in full SoC integration"
+
+#--- Intentionally Undriven Signals ---
+# Example: waive signals that are driven in a different configuration
+# waive -rule W_164 -module counter_top -signal phantom_bus \
+#     -comment "Driven in FPGA configuration; not present in ASIC build"
+
+#--- Testbench Modules ---
+# Exclude all testbench modules from lint checking
+# waive -rule * -module "*_tb" \
+#     -comment "Testbench modules are not synthesized"
+# waive -rule * -module "*_test" \
+#     -comment "Test modules are not synthesized"
+
+#--- CDC Waivers (use with extreme caution) ---
+# waive -rule Ac_cdc01 \
+#     -from {clk_a:config_mode} -to {clk_b:config_mode_sync} \
+#     -comment "Quasi-static signal: config_mode only changes during system reset. \
+#               Verified stable for >100 clk_b cycles before any clk_b-domain \
+#               logic uses it. Reviewed by: J. Smith, 2024-01-15"

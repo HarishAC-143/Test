@@ -1,0 +1,62 @@
+#=============================================================================
+# SpyGlass CDC Constraints (SGDC Format)
+#
+# These constraints are CRITICAL for accurate CDC analysis. They tell
+# SpyGlass which clocks are asynchronous, which signals are quasi-static,
+# and which modules are CDC-safe.
+#
+# Without proper constraints, SpyGlass may:
+#   - Produce false negatives (miss real CDC issues)
+#   - Produce false positives (flag safe crossings)
+#   - Incorrectly classify clock relationships
+#=============================================================================
+
+current_design cdc_top
+
+#--- Clock Definitions ---
+clock -name clk_a -domain domain_a -edge {0 5}     ;# 100 MHz
+clock -name clk_b -domain domain_b -edge {0 3.75}   ;# 133 MHz
+
+#--- Clock Domain Relationships ---
+# Declare clocks as asynchronous — MOST IMPORTANT CONSTRAINT for CDC
+# Without this, SpyGlass may treat clk_a and clk_b as synchronous
+assume_clock_relationship -async clk_a clk_b
+
+#--- Reset Definitions ---
+reset -name rst_n -value 0 -async    ;# Global async reset, active low
+
+#--- Quasi-Static Signals ---
+# Quasi-static signals change only during reset or configuration.
+# They are stable during normal operation and do not need synchronization.
+# Use sparingly — incorrect quasi_static constraints hide real CDC bugs.
+#
+# quasi_static -name config_reg[*]
+# quasi_static -name boot_mode
+
+#--- CDC-Safe Modules ---
+# Mark modules that have been independently verified for CDC safety.
+# SpyGlass will not flag crossings within these modules.
+#
+# abstract_port -module sync_2ff -type cdc_safe
+# abstract_port -module async_fifo -type cdc_safe
+
+#--- False Path Constraints ---
+# Signals that are architecturally guaranteed never to be active
+# at the same time as their crossing path.
+#
+# cdc_false_path -from {domain_a:test_mode} -to {domain_b:test_mode_sync}
+
+#--- Synchronizer Depth ---
+# Specify the minimum required synchronizer depth
+# (default is 2; increase for very high-frequency designs)
+# set_sync_depth -depth 2
+# set_sync_depth -depth 3 -clock clk_fast
+
+#--- CDC Protocol Constraints ---
+# Handshake protocol definitions help SpyGlass understand
+# multi-signal crossing patterns
+#
+# cdc_protocol -type handshake \
+#     -req {domain_a:req_src} \
+#     -ack {domain_b:ack_dst} \
+#     -data {domain_a:data_src[*]}

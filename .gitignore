@@ -1,0 +1,15 @@
+# SpyGlass output directories
+spyglass_output/
+*.prj
+
+# SpyGlass runtime files
+*.sg_work/
+*.log
+*.rpt
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
