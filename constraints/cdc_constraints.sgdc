@@ -1,0 +1,111 @@
+##-----------------------------------------------------------------------------
+## SpyGlass CDC Constraints (SGDC Format)
+##-----------------------------------------------------------------------------
+## SGDC (SpyGlass Design Constraints) files define clock domains, their
+## relationships, and special signal properties for CDC analysis.
+##
+## This file corresponds to the multi_clock_system example.
+##
+## Key constraint types:
+##   create_clock         — Define a clock signal and its period
+##   set_clock_groups     — Specify synchronous/asynchronous relationships
+##   quasi_static         — Mark signals that change only during config phase
+##   abstract_port        — Define abstract clock/reset port properties
+##   cdc_false_path       — Suppress CDC checking on known-safe paths
+##   assume_path_delay    — Specify max delay on CDC paths
+##-----------------------------------------------------------------------------
+
+##=============================================================================
+## Clock Definitions
+##=============================================================================
+## Every clock in the design must be defined here. SpyGlass uses these
+## to build the clock tree and identify clock domains.
+##
+## Syntax: create_clock -name <name> -period <ns> [get_ports <port>]
+
+current_design multi_clock_system
+
+## Core clock: 200 MHz → period = 5 ns
+create_clock -name clk_core -period 5.0 [get_ports clk_core]
+
+## Peripheral clock: 50 MHz → period = 20 ns
+create_clock -name clk_peri -period 20.0 [get_ports clk_peri]
+
+## I/O clock: 33 MHz → period = 30.0 ns
+create_clock -name clk_io -period 30.0 [get_ports clk_io]
+
+##=============================================================================
+## Clock Relationships
+##=============================================================================
+## Declare which clocks are asynchronous to each other.
+## Without this, SpyGlass assumes all clocks may be related.
+##
+## -asynchronous: Clocks have no known phase/frequency relationship
+## -logically_exclusive: Clocks never active simultaneously (e.g., MUXed clocks)
+
+## All three clocks are asynchronous to each other
+set_clock_groups -asynchronous \
+    -group {clk_core} \
+    -group {clk_peri} \
+    -group {clk_io}
+
+##=============================================================================
+## Reset Constraints
+##=============================================================================
+## Define reset signals and their properties
+
+## Master reset is asynchronous and active-low
+## abstract_port tells SpyGlass this is a known asynchronous input
+abstract_port -name master_rst_n -clock {}
+
+##=============================================================================
+## Quasi-Static Signals
+##=============================================================================
+## Quasi-static signals are configuration signals that are set once
+## during initialization and remain stable during normal operation.
+## They do not need CDC synchronizers because they don't toggle
+## during functional operation.
+##
+## Example: Mode selection, configuration registers, strap pins
+##
+## Syntax: quasi_static -name <signal_name>
+
+## Uncomment if you have quasi-static signals:
+# quasi_static -name cfg_mode[*]
+# quasi_static -name test_enable
+
+##=============================================================================
+## CDC False Paths
+##=============================================================================
+## False paths suppress CDC analysis on paths that are known to be safe
+## by design. Use sparingly and document justification.
+##
+## Syntax: cdc_false_path -from <source> -to <destination>
+
+## Example: Test-mode signals are only active during scan test,
+## never during functional operation
+# cdc_false_path -from [get_pins scan_enable] -to [get_cells *]
+
+##=============================================================================
+## Synchronizer Constraints
+##=============================================================================
+## Tell SpyGlass about custom synchronizer cells in your library.
+## By default, SpyGlass recognizes common 2-FF synchronizer patterns.
+##
+## If using library-specific synchronizer cells:
+# set_parameter synchronizer_cell {SYNC2_FF SYNC3_FF}
+
+## Minimum number of synchronizer stages required (default: 2)
+# set_parameter min_sync_stages 2
+
+##=============================================================================
+## CDC Path Delay Constraints
+##=============================================================================
+## Specify maximum allowable delay on CDC paths.
+## Used to verify timing closure for synchronizers.
+##
+## Syntax: assume_path_delay -from <src_clock> -to <dst_clock> -max <delay_ns>
+
+# assume_path_delay -from clk_core -to clk_peri -max 5.0
+# assume_path_delay -from clk_peri -to clk_core -max 5.0
+# assume_path_delay -from clk_io   -to clk_core -max 5.0

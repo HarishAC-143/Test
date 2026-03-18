@@ -1,0 +1,90 @@
+##-----------------------------------------------------------------------------
+## SpyGlass CDC Waiver File
+##-----------------------------------------------------------------------------
+## CDC waivers require extra care — an incorrect CDC waiver can mask
+## a real metastability bug that causes silicon failure.
+##
+## Approval process for CDC waivers:
+##   1. Engineer documents justification with timing analysis
+##   2. Peer review by another CDC-experienced engineer
+##   3. Sign-off by design lead or verification lead
+##   4. Record waiver in design review meeting minutes
+##
+## Types of legitimate CDC waivers:
+##   - Quasi-static signals (change only during reset/configuration)
+##   - Test/scan-mode signals (only active in non-functional mode)
+##   - Signals protected by external protocol (documented handshake)
+##   - False paths (signals that physically cannot cause issues)
+##-----------------------------------------------------------------------------
+
+##=============================================================================
+## Example CDC Waivers
+##=============================================================================
+
+## ---------------------------------------------------------------------------
+## Waiver 1: Quasi-static configuration signals
+## ---------------------------------------------------------------------------
+## Configuration registers are written once during boot-up while the
+## design is held in reset. They remain stable during all functional
+## operation. No synchronizer is needed because the signal never
+## toggles while clocks are running.
+##
+## Evidence: Boot sequence holds rst_n low for >100 clock cycles after
+## configuration writes complete. All downstream logic is in reset
+## during configuration.
+##
+## waive -rule {Ac_cdc01}
+##   -from {u_config/cfg_mode_reg[*]}
+##   -to {u_core/cfg_mode_sync[*]}
+##   -comment "Quasi-static: written once during boot while design is in reset"
+
+## ---------------------------------------------------------------------------
+## Waiver 2: Scan/test mode signals
+## ---------------------------------------------------------------------------
+## scan_enable and scan_mode signals cross clock domains but are only
+## active during manufacturing test (scan mode). During functional
+## operation, these signals are tied to constant values.
+##
+## waive -rule {Ac_cdc01}
+##   -from {scan_enable}
+##   -to {*}
+##   -comment "Test-mode signal; constant during functional operation"
+
+## ---------------------------------------------------------------------------
+## Waiver 3: Synchronized externally by protocol
+## ---------------------------------------------------------------------------
+## In some cases, CDC synchronization is handled at a higher level
+## (e.g., a software handshake protocol ensures the signal is stable
+## for N cycles before the receiver reads it). Document the protocol.
+##
+## waive -rule {Ac_cdc02}
+##   -from {u_dma/descriptor_addr[*]}
+##   -to {u_engine/desc_addr_reg[*]}
+##   -comment "SW protocol: descriptor written, then doorbell ring. HW reads
+##             after doorbell sync, by which time data has been stable >10 cycles."
+
+## ---------------------------------------------------------------------------
+## Waiver 4: Reset crossing (handled by reset synchronizer)
+## ---------------------------------------------------------------------------
+## If SpyGlass reports Ac_unsync_rst but you have a reset synchronizer
+## that SpyGlass doesn't recognize (e.g., a custom library cell), you
+## may need to waive and document.
+##
+## waive -rule {Ac_unsync_rst}
+##   -from {u_rst_gen/async_rst_n}
+##   -to {u_core/*}
+##   -comment "Reset synchronized by u_rst_sync (custom library cell RSTSYNC2)"
+
+##=============================================================================
+## Template for CDC Waivers
+##=============================================================================
+## waive -rule {Ac_cdc0X}
+##   -from {source_instance/signal}
+##   -to {destination_instance/signal}
+##   -comment "Justification: <explain why this crossing is safe>"
+##
+## Required documentation:
+##   - What is the signal?
+##   - Why doesn't it need synchronization?
+##   - What guarantees stability? (protocol, timing, quasi-static)
+##   - Who reviewed and approved this waiver?
