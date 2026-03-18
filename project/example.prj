@@ -1,0 +1,100 @@
+# ==============================================================================
+# SpyGlass Project File (.prj)
+# ==============================================================================
+#
+# This project file configures SpyGlass to analyze the tutorial examples.
+# It specifies RTL sources, design constraints, and analysis goals.
+#
+# Usage:
+#   GUI:   spyglass -project project/example.prj
+#   Batch: sg_shell -tcl scripts/run_spyglass.tcl
+#
+# ==============================================================================
+
+# ==============================================================================
+# Design Configuration
+# ==============================================================================
+
+# Top-level module for analysis
+set_option top async_fifo
+
+# Language settings
+set_option language   verilog
+set_option enableSV   yes
+
+# Preprocessor defines (common synthesis guards)
+set_option define {SYNTHESIS 1}
+
+# Include directories
+set_option incdir {.}
+
+# Suppress excessive informational messages
+set_option mthresh 50000
+
+# ==============================================================================
+# RTL Source Files
+# ==============================================================================
+
+# CDC example files
+read_file -type verilog {
+    examples/cdc/rtl/async_fifo.v
+    examples/cdc/rtl/unsync_crossing.v
+    examples/cdc/rtl/multibit_crossing.v
+    examples/cdc/rtl/combo_before_sync.v
+    examples/cdc/rtl/pulse_sync.v
+    examples/cdc/rtl/mux_sync.v
+}
+
+# CDC fixed examples
+read_file -type verilog {
+    examples/cdc/fixed/unsync_crossing_fixed.v
+    examples/cdc/fixed/multibit_crossing_fixed.v
+    examples/cdc/fixed/combo_before_sync_fixed.v
+}
+
+# Lint example files
+read_file -type verilog {
+    examples/lint/rtl/latch_inferred.v
+    examples/lint/rtl/width_mismatch.v
+    examples/lint/rtl/blocking_sequential.v
+    examples/lint/rtl/combo_loop.v
+    examples/lint/rtl/undriven_unused.v
+}
+
+# Lint fixed examples
+read_file -type verilog {
+    examples/lint/fixed/latch_inferred_fixed.v
+    examples/lint/fixed/width_mismatch_fixed.v
+    examples/lint/fixed/blocking_sequential_fixed.v
+    examples/lint/fixed/combo_loop_fixed.v
+}
+
+# Advanced examples
+read_file -type verilog {
+    examples/advanced/reset_sync.v
+    examples/advanced/reconvergence.v
+}
+
+# ==============================================================================
+# Design Constraints
+# ==============================================================================
+
+read_file -type sgdc examples/cdc/constraints/design.sgdc
+
+# ==============================================================================
+# Waiver File
+# ==============================================================================
+
+# read_file -type waiver project/waivers.tcl
+
+# ==============================================================================
+# Analysis Goals
+# ==============================================================================
+
+# Goal 1: RTL Lint
+# current_goal lint/lint_rtl
+# run_goal
+
+# Goal 2: CDC Verification
+# current_goal cdc/cdc_verify
+# run_goal

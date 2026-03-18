@@ -1,0 +1,114 @@
+# ==============================================================================
+# SpyGlass Design Constraints (SGDC) — Example File
+# ==============================================================================
+#
+# This file defines clocks, resets, and CDC-related constraints for
+# SpyGlass CDC analysis. Accurate clock and reset definitions are
+# critical for correct CDC results — missing or incorrect definitions
+# will cause false negatives (real bugs missed) or false positives.
+#
+# ==============================================================================
+
+# ==============================================================================
+# Clock Definitions
+# ==============================================================================
+
+# Primary system clock — 100 MHz
+create_clock -name sys_clk -period 10.0 [get_ports clk_a]
+
+# Peripheral clock — 50 MHz (asynchronous to sys_clk)
+create_clock -name peri_clk -period 20.0 [get_ports clk_b]
+
+# High-speed interface clock — 200 MHz
+# create_clock -name hs_clk -period 5.0 [get_ports clk_200mhz]
+
+# Generated clock: divide-by-2 from sys_clk
+# create_generated_clock -name div2_clk \
+#     -source [get_ports clk_a] \
+#     -divide_by 2 \
+#     [get_pins u_clk_div/clk_out]
+
+# ==============================================================================
+# Clock Relationships
+# ==============================================================================
+
+# Declare sys_clk and peri_clk as asynchronous.
+# SpyGlass will flag any unprotected crossing between these domains.
+set_clock_groups -asynchronous \
+    -group {sys_clk} \
+    -group {peri_clk}
+
+# If you have synchronous clocks (same source, fixed phase relationship),
+# they are treated as synchronous by default. No constraint needed.
+
+# ==============================================================================
+# Reset Definitions
+# ==============================================================================
+
+# Active-low asynchronous reset for sys_clk domain
+set_reset -name sys_reset -async -sense low [get_ports rst_a_n]
+
+# Active-low asynchronous reset for peri_clk domain
+set_reset -name peri_reset -async -sense low [get_ports rst_b_n]
+
+# ==============================================================================
+# CDC Synchronizer Specifications
+# ==============================================================================
+
+# Tell SpyGlass about known synchronizer cells/instances.
+# This helps SpyGlass recognize custom synchronizers that don't match
+# its built-in structural patterns.
+
+# Example: identify a two-flop synchronizer instance
+# set_cdc_synchronizer -type two_dff \
+#     -from sys_clk -to peri_clk \
+#     [get_cells u_sync/sync_ff1]
+
+# ==============================================================================
+# Quasi-Static Signals
+# ==============================================================================
+
+# Configuration registers that are programmed once during initialization
+# and remain stable during normal operation. These do not need dynamic
+# synchronization because they never change while the design is active.
+
+# set_cdc_signal -type quasi_static \
+#     -from sys_clk -to peri_clk \
+#     [get_nets config_mode[*]]
+
+# ==============================================================================
+# CDC False Paths
+# ==============================================================================
+
+# Signals that are intentionally not synchronized because they serve
+# a specific purpose (e.g., debug-only signals, test-mode signals).
+
+# set_cdc_false_path \
+#     -from sys_clk -to peri_clk \
+#     [get_nets debug_probe]
+
+# ==============================================================================
+# Abstract Port Definitions (for block-level analysis)
+# ==============================================================================
+
+# When analyzing a sub-block in isolation, tell SpyGlass which clock
+# domain each input port belongs to.
+
+# set_input_port_clock -port data_in -clock sys_clk
+# set_input_port_clock -port ext_req -clock peri_clk
+
+# ==============================================================================
+# Notes
+# ==============================================================================
+#
+# 1. Every clock in the design MUST be defined here, or SpyGlass will
+#    not detect crossings involving that clock.
+#
+# 2. If two clocks share a common source but are not explicitly grouped,
+#    SpyGlass defaults to treating them as synchronous.
+#
+# 3. Generated clocks (dividers, PLLs) should use create_generated_clock
+#    to establish the parent-child relationship.
+#
+# 4. Review the CDC matrix in the SpyGlass GUI to verify that all
+#    expected clock domain pairs are present.
