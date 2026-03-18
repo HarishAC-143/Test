@@ -1,0 +1,86 @@
+##-----------------------------------------------------------------------------
+## SpyGlass Lint Waiver File
+##-----------------------------------------------------------------------------
+## Waiver files suppress specific SpyGlass messages that have been reviewed
+## and determined to be acceptable. Each waiver MUST include a comment
+## explaining why the violation is safe to ignore.
+##
+## Syntax:
+##   waive -rule {RULE_ID}
+##     [-instance <hierarchical_path>]
+##     [-module <module_name>]
+##     [-signal <signal_name>]
+##     -comment "Justification"
+##
+## Best practices:
+##   1. Be as specific as possible (instance > module > global)
+##   2. Always provide a clear justification in -comment
+##   3. Review waivers whenever the RTL changes
+##   4. Get senior engineer sign-off for critical waivers
+##   5. Version control waiver files alongside RTL
+##-----------------------------------------------------------------------------
+
+##=============================================================================
+## Example Waivers for Tutorial Designs
+##=============================================================================
+
+## ---------------------------------------------------------------------------
+## Waiver 1: Unused debug signal in counter_with_issues
+## ---------------------------------------------------------------------------
+## The debug_sig signal is intentionally left undriven in the tutorial
+## example to demonstrate the W_UNDRIVEN violation. In a real design,
+## you might waive debug signals that are only connected during
+## FPGA prototyping.
+##
+## waive -rule {W_UNDRIVEN}
+##   -module {counter_with_issues}
+##   -signal {debug_sig}
+##   -comment "Tutorial example: intentionally demonstrates W_UNDRIVEN"
+
+## ---------------------------------------------------------------------------
+## Waiver 2: Unused internal flag
+## ---------------------------------------------------------------------------
+## Similarly, internal_flag is intentionally unused to demonstrate
+## the W_UNUSED lint rule. In production, you might waive signals
+## that feed into optional debug logic.
+##
+## waive -rule {W_UNUSED}
+##   -module {counter_with_issues}
+##   -signal {internal_flag}
+##   -comment "Tutorial example: intentionally demonstrates W_UNUSED"
+
+## ---------------------------------------------------------------------------
+## Waiver 3: Async reset not needed for test wrapper (example)
+## ---------------------------------------------------------------------------
+## In some designs, test wrappers or simulation-only modules do not
+## require asynchronous reset because they are only used in controlled
+## test environments.
+##
+## waive -rule {W_REGS_ARST}
+##   -module {test_wrapper}
+##   -comment "Test wrapper operates in simulation only; async reset not required"
+
+## ---------------------------------------------------------------------------
+## Waiver 4: Non-synthesizable constructs in simulation modules
+## ---------------------------------------------------------------------------
+## Simulation-only modules may legitimately use initial blocks, delays,
+## and system tasks. Waive SYNTH_5130 for these modules.
+##
+## waive -rule {SYNTH_5130}
+##   -module {tb_*}
+##   -comment "Testbench modules are not synthesized"
+
+##=============================================================================
+## Template for Adding New Waivers
+##=============================================================================
+## Copy and fill in the template below for each new waiver:
+##
+## ## ---------------------------------------------------------------------------
+## ## Waiver N: <Brief description>
+## ## ---------------------------------------------------------------------------
+## ## <Detailed justification — why is this safe?>
+## ##
+## waive -rule {RULE_ID}
+##   -module {module_name}
+##   -signal {signal_name}
+##   -comment "Justification text"

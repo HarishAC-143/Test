@@ -1,0 +1,89 @@
+##-----------------------------------------------------------------------------
+## SpyGlass Project File
+##-----------------------------------------------------------------------------
+## This project file configures SpyGlass to analyze the tutorial examples.
+## It demonstrates the standard structure of a production SpyGlass project.
+##
+## Usage:
+##   spyglass -batch -project scripts/spyglass_project.prj
+##   spyglass -project scripts/spyglass_project.prj   (GUI mode)
+##-----------------------------------------------------------------------------
+
+##=============================================================================
+## Project Settings
+##=============================================================================
+
+## Working directory for SpyGlass output (reports, databases, logs)
+set_option projectwdir ./spyglass_output
+
+## Enable multi-threading for faster analysis
+set_option mthresh 4
+
+## Set Verilog language standard
+set_option language_mode mixed    ;# mixed = Verilog + SystemVerilog
+set_option enableSV yes           ;# enable SystemVerilog constructs
+
+##=============================================================================
+## Design Files
+##=============================================================================
+## Read RTL source files. Order matters for module dependencies.
+## Use -type verilog for .v files, -type systemverilog for .sv files.
+
+## --- Lint issue examples (with intentional bugs) ---
+read_file -type verilog examples/lint_issues/counter_with_issues.v
+read_file -type verilog examples/lint_issues/latch_and_combo.v
+read_file -type verilog examples/lint_issues/fsm_issues.v
+
+## --- CDC issue examples (with intentional bugs) ---
+read_file -type verilog examples/cdc_issues/cdc_missing_sync.v
+read_file -type verilog examples/cdc_issues/cdc_multibit_bad.v
+read_file -type verilog examples/cdc_issues/cdc_combo_before_sync.v
+
+## --- Fixed examples ---
+read_file -type verilog examples/lint_fixed/counter_fixed.v
+read_file -type verilog examples/lint_fixed/latch_and_combo_fixed.v
+read_file -type verilog examples/lint_fixed/fsm_fixed.v
+read_file -type verilog examples/cdc_fixed/cdc_with_sync.v
+read_file -type verilog examples/cdc_fixed/cdc_multibit_gray.v
+read_file -type verilog examples/cdc_fixed/cdc_combo_fixed.v
+
+## --- Practical examples ---
+read_file -type verilog examples/practical/reset_synchronizer.v
+read_file -type verilog examples/practical/async_fifo.v
+read_file -type verilog examples/practical/multi_clock_system.v
+
+## --- Constraint files ---
+read_file -type sgdc constraints/cdc_constraints.sgdc
+read_file -type sdc  constraints/timing.sdc
+
+##=============================================================================
+## Top Module
+##=============================================================================
+## Set the top-level module for analysis.
+## Change this to analyze different examples.
+set_option top multi_clock_system
+
+##=============================================================================
+## Waiver Files
+##=============================================================================
+read_file -type waiver waivers/lint_waivers.swl
+read_file -type waiver waivers/cdc_waivers.swl
+
+##=============================================================================
+## Goal Configuration
+##=============================================================================
+
+## --- Lint Analysis ---
+current_goal lint/lint_rtl
+set_goal_option default
+run_goal
+
+## --- CDC Setup (verify clock tree before full CDC) ---
+current_goal cdc/cdc_setup
+set_goal_option default
+run_goal
+
+## --- CDC Verification ---
+current_goal cdc/cdc_verify
+set_goal_option default
+run_goal
