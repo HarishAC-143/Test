@@ -1,0 +1,401 @@
+# ==============================================================================
+# SDC Timing Constraints for Macronix MX66U1G45G 1.8V 1Gb SPI NOR Flash
+# Target: Altera (Intel) FPGA — Quartus Prime TimeQuest Timing Analyzer
+#
+# Device:   MX66U1G45G (BGA-24 package, J-Grade: -40°C to 105°C)
+# Datasheet: Rev 1.2, August 13, 2020
+# Interface: SPI Mode 0 (CPOL=0, CPHA=0) / Mode 3 (CPOL=1, CPHA=1)
+# Modes:    Standard SPI (x1), Dual I/O (x2), Quad I/O (x4), STR & DTR
+#
+# IMPORTANT: Adapt port names and clock sources to match your RTL design.
+# ==============================================================================
+
+
+# ==============================================================================
+# Section 1: User-Configurable Parameters
+# ==============================================================================
+
+# ---- Flash AC Timing from MX66U1G45G Datasheet (Table 19) ----
+
+# Clock-to-output valid (Flash → FPGA read path), max values
+# Select the value matching your PCB loading:
+#   30 pF loading : 8.0 ns
+#   15 pF loading : 6.0 ns  (16-SOP; BGA-24 expected ≤ 6.0 ns)
+#   10 pF loading : 6.0 ns
+set tCLQV_max        7.0   ;# Conservative default for ~15-20 pF typical PCB loading
+
+# Output hold time (Flash → FPGA read path), min value
+set tCLQX_min        1.0   ;# Min 1.0 ns (typ 3.0 ns)
+
+# Data-in setup time (FPGA → Flash write path), STR mode
+set tDVCH            1.5   ;# Min 1.5 ns
+
+# Data-in hold time (FPGA → Flash write path), STR mode
+set tCHDX            1.5   ;# Min 1.5 ns
+
+# Data-in setup time (FPGA → Flash write path), DTR mode
+set tDVCL            1.5   ;# Min 1.5 ns
+
+# Data-in hold time (FPGA → Flash write path), DTR mode
+set tCLDX            1.5   ;# Min 1.5 ns
+
+# CS# active setup time relative to SCLK rising edge
+set tSLCH            4.5   ;# Min 4.5 ns
+
+# CS# not-active hold time relative to SCLK rising edge
+set tCHSL            4.0   ;# Min 4.0 ns
+
+# CS# active hold time relative to SCLK rising edge
+set tCHSH            3.0   ;# Min 3.0 ns
+
+# CS# deselect time (read-to-read)
+set tSHSL_read       7.0   ;# Min 7.0 ns
+
+# CS# deselect time (write/erase/program to read status register)
+set tSHSL_write     30.0   ;# Min 30.0 ns
+
+# Output disable time (CS# high to outputs Hi-Z)
+set tSHQZ            5.5   ;# Max 5.5 ns (BGA-24, 15 pF)
+
+
+# ---- Board-Level Trace Delays ----
+# Adjust these to match your PCB design. For matched-length traces, set both
+# to the same value. Units: nanoseconds.
+
+set board_delay_clk_min   0.1   ;# Min propagation delay: FPGA SCLK pin → Flash CLK pin
+set board_delay_clk_max   0.3   ;# Max propagation delay: FPGA SCLK pin → Flash CLK pin
+set board_delay_data_min  0.1   ;# Min propagation delay: data trace (either direction)
+set board_delay_data_max  0.3   ;# Max propagation delay: data trace (either direction)
+
+
+# ---- SPI Clock Configuration ----
+# Maximum operating frequencies from datasheet:
+#   Normal READ (1-1-1):       50 MHz
+#   FAST READ / DREAD / 2READ: up to 133 MHz (6 dummy cycles)
+#   4READ / QREAD / 4DTRD:    up to 166 MHz (10 dummy cycles)
+#
+# Set spi_clk_period to match your design's SPI clock frequency.
+set spi_clk_period  20.0  ;# 50 MHz default (ns). Adjust as needed.
+
+
+# ---- FPGA Port Names ----
+# Change these to match your design's top-level port names.
+set flash_sclk_port     FLASH_SCLK
+set flash_cs_n_port     FLASH_CS_N
+set flash_mosi_port     FLASH_MOSI     ;# SIO0
+set flash_miso_port     FLASH_MISO     ;# SIO1
+
+# For Dual I/O mode, add SIO[1] as bidirectional:
+set flash_sio1_port     FLASH_SIO1     ;# Same as MISO in standard SPI
+
+# For Quad I/O mode, add SIO[0:3]:
+set flash_sio_ports     {FLASH_SIO0 FLASH_SIO1 FLASH_SIO2 FLASH_SIO3}
+
+# ---- Clock Source ----
+# Specify how SCLK is generated in your design. Uncomment ONE option:
+#   Option A: SCLK from a PLL output driving a register, divided by N
+#   Option B: SCLK toggled by a register clocked by sys_clk
+#   Option C: SCLK from ALTDDIO_OUT (DDR output) for higher frequencies
+set spi_clk_source_pin  "spi_master_inst|spi_clk_reg|q"  ;# Register output driving SCLK
+
+
+# ==============================================================================
+# Section 2: System Clock
+# ==============================================================================
+
+# Define the primary system clock feeding the SPI controller.
+# Adjust period and port name to match your design.
+# If the system clock is already constrained elsewhere, remove this line.
+#
+# create_clock -name sys_clk -period 10.0 [get_ports {SYS_CLK}]
+
+
+# ==============================================================================
+# Section 3: SPI Clock — Generated Clock on SCLK Output Pin
+# ==============================================================================
+
+# Create a generated clock at the FPGA's SCLK output pin.
+# This represents the clock as seen by the external flash at the FPGA boundary.
+#
+# Option A: SCLK generated by a clock divider register
+#   -divide_by N should match your RTL's clock division ratio.
+create_generated_clock \
+    -name spi_sclk \
+    -source [get_pins $spi_clk_source_pin] \
+    -divide_by 1 \
+    [get_ports $flash_sclk_port]
+
+# Option B (alternative): SCLK from PLL output through a DDR output buffer
+# Uncomment and adapt if using ALTDDIO_OUT or similar:
+#
+# create_generated_clock \
+#     -name spi_sclk \
+#     -source [get_pins {pll_inst|outclk_0}] \
+#     [get_ports $flash_sclk_port]
+
+
+# ==============================================================================
+# Section 4: Virtual Clock for Flash Interface
+# ==============================================================================
+
+# A virtual clock representing the SPI clock at the flash device,
+# accounting for board-level propagation delay.
+# Used as a timing reference for input/output delay constraints.
+
+create_clock -name spi_sclk_virtual -period $spi_clk_period
+
+
+# ==============================================================================
+# Section 5: Output Constraints — FPGA → Flash (Write Path: MOSI, CS#)
+# ==============================================================================
+# In SPI Mode 0, the FPGA drives MOSI on the falling edge of SCLK and the
+# flash latches it on the rising edge. CS# transitions are also relative to
+# SCLK edges.
+#
+# Output delay formula (source-synchronous):
+#   -max = tsu_flash + Tbd_max - Tbc_min    (setup analysis)
+#   -min = -(th_flash) + Tbd_min - Tbc_max  (hold analysis)
+#
+# Where:
+#   tsu_flash = flash data setup time (tDVCH for data, tSLCH for CS#)
+#   th_flash  = flash data hold time  (tCHDX for data, tCHSL for CS# approx)
+#   Tbd       = board delay on data path
+#   Tbc       = board delay on clock path
+# ==============================================================================
+
+# ---- 5a: MOSI / SIO0 Output Delay (Standard SPI Mode) ----
+
+set mosi_output_delay_max [expr {$tDVCH + $board_delay_data_max - $board_delay_clk_min}]
+set mosi_output_delay_min [expr {-$tCHDX + $board_delay_data_min - $board_delay_clk_max}]
+
+set_output_delay \
+    -clock spi_sclk \
+    -max $mosi_output_delay_max \
+    [get_ports $flash_mosi_port]
+
+set_output_delay \
+    -clock spi_sclk \
+    -min $mosi_output_delay_min \
+    [get_ports $flash_mosi_port]
+
+
+# ---- 5b: CS# Output Delay ----
+# CS# must be asserted tSLCH before SCLK rising edge and held tCHSL after.
+
+set cs_output_delay_max [expr {$tSLCH + $board_delay_data_max - $board_delay_clk_min}]
+set cs_output_delay_min [expr {-$tCHSL + $board_delay_data_min - $board_delay_clk_max}]
+
+set_output_delay \
+    -clock spi_sclk \
+    -max $cs_output_delay_max \
+    [get_ports $flash_cs_n_port]
+
+set_output_delay \
+    -clock spi_sclk \
+    -min $cs_output_delay_min \
+    [get_ports $flash_cs_n_port]
+
+
+# ---- 5c: Quad I/O Output Delay (SIO[0:3] in output mode) ----
+# Apply the same data output constraints to all SIO pins when used for writes.
+# Uncomment the block below if your design uses Quad I/O mode.
+
+# foreach sio_port $flash_sio_ports {
+#     set_output_delay \
+#         -clock spi_sclk \
+#         -max $mosi_output_delay_max \
+#         [get_ports $sio_port]
+#
+#     set_output_delay \
+#         -clock spi_sclk \
+#         -min $mosi_output_delay_min \
+#         [get_ports $sio_port]
+# }
+
+
+# ==============================================================================
+# Section 6: Input Constraints — Flash → FPGA (Read Path: MISO)
+# ==============================================================================
+# The flash drives data on the FALLING edge of SCLK. The FPGA captures data
+# on the RISING edge (half a period later in Mode 0).
+#
+# Input delay formula (source-synchronous, data launched on falling edge):
+#   -max = Tbc_max + tCLQV_max + Tbd_max   (setup analysis)
+#   -min = Tbc_min + tCLQX_min + Tbd_min   (hold analysis)
+#
+# The -clock_fall flag indicates the flash launches data on the falling edge.
+# TimeQuest will then check setup against the next rising edge (half period
+# later) and hold against the same falling edge.
+# ==============================================================================
+
+set miso_input_delay_max [expr {$board_delay_clk_max + $tCLQV_max + $board_delay_data_max}]
+set miso_input_delay_min [expr {$board_delay_clk_min + $tCLQX_min + $board_delay_data_min}]
+
+set_input_delay \
+    -clock spi_sclk \
+    -clock_fall \
+    -max $miso_input_delay_max \
+    [get_ports $flash_miso_port]
+
+set_input_delay \
+    -clock spi_sclk \
+    -clock_fall \
+    -min $miso_input_delay_min \
+    [get_ports $flash_miso_port]
+
+
+# ---- 6a: Quad I/O Input Delay (SIO[0:3] in input mode) ----
+# Uncomment the block below if your design uses Quad I/O mode.
+
+# foreach sio_port $flash_sio_ports {
+#     set_input_delay \
+#         -clock spi_sclk \
+#         -clock_fall \
+#         -max $miso_input_delay_max \
+#         [get_ports $sio_port]
+#
+#     set_input_delay \
+#         -clock spi_sclk \
+#         -clock_fall \
+#         -min $miso_input_delay_min \
+#         [get_ports $sio_port]
+# }
+
+
+# ==============================================================================
+# Section 7: DTR (Double Transfer Rate) Mode Constraints
+# ==============================================================================
+# In DTR mode, data is driven and captured on BOTH edges of SCLK.
+# The flash launches data on both rising and falling edges.
+# Uncomment this section if your design uses DTR mode (4DTRD command).
+#
+# Supported up to 166 MHz with 10 dummy cycles.
+# ==============================================================================
+
+# set dtr_output_delay_max [expr {$tDVCL + $board_delay_data_max - $board_delay_clk_min}]
+# set dtr_output_delay_min [expr {-$tCLDX + $board_delay_data_min - $board_delay_clk_max}]
+# set dtr_input_delay_max  [expr {$board_delay_clk_max + $tCLQV_max + $board_delay_data_max}]
+# set dtr_input_delay_min  [expr {$board_delay_clk_min + $tCLQX_min + $board_delay_data_min}]
+#
+# # Output constraints for DTR — both edges
+# foreach sio_port $flash_sio_ports {
+#     set_output_delay -clock spi_sclk -max $dtr_output_delay_max \
+#         [get_ports $sio_port]
+#     set_output_delay -clock spi_sclk -max $dtr_output_delay_max \
+#         -clock_fall -add_delay [get_ports $sio_port]
+#
+#     set_output_delay -clock spi_sclk -min $dtr_output_delay_min \
+#         [get_ports $sio_port]
+#     set_output_delay -clock spi_sclk -min $dtr_output_delay_min \
+#         -clock_fall -add_delay [get_ports $sio_port]
+# }
+#
+# # Input constraints for DTR — data launched on both edges
+# foreach sio_port $flash_sio_ports {
+#     set_input_delay -clock spi_sclk -max $dtr_input_delay_max \
+#         [get_ports $sio_port]
+#     set_input_delay -clock spi_sclk -max $dtr_input_delay_max \
+#         -clock_fall -add_delay [get_ports $sio_port]
+#
+#     set_input_delay -clock spi_sclk -min $dtr_input_delay_min \
+#         [get_ports $sio_port]
+#     set_input_delay -clock spi_sclk -min $dtr_input_delay_min \
+#         -clock_fall -add_delay [get_ports $sio_port]
+# }
+
+
+# ==============================================================================
+# Section 8: Multicycle Path Constraints
+# ==============================================================================
+# SPI interfaces often operate at a much slower frequency than the FPGA fabric.
+# If the SPI controller uses multicycle enables or the SCLK is divided from a
+# faster internal clock, add multicycle path exceptions here.
+#
+# Example: If SCLK = sys_clk / 4, the SPI data changes once every 4 sys_clk
+# cycles. Add a 4-cycle multicycle path to relax internal timing:
+#
+# set_multicycle_path -setup -from [get_clocks sys_clk] -to [get_clocks spi_sclk] 4
+# set_multicycle_path -hold  -from [get_clocks sys_clk] -to [get_clocks spi_sclk] 3
+
+
+# ==============================================================================
+# Section 9: False Path Constraints
+# ==============================================================================
+# Static or quasi-static control signals that do not need to be timed at
+# full SPI clock speed.
+
+# CS# deselect: The CS# signal is asserted/deasserted asynchronously relative
+# to SCLK between transactions. If your design handles CS# outside the SPI
+# clock domain, mark it as a false path to avoid spurious timing violations
+# during idle periods.
+#
+# set_false_path -from [get_registers {*spi*cs_idle*}] -to [get_ports $flash_cs_n_port]
+
+# Clock-domain crossings: If the SPI controller crosses between sys_clk and
+# spi_sclk domains with synchronizers, mark those paths:
+#
+# set_false_path -from [get_clocks sys_clk] -to [get_clocks spi_sclk]
+# set_false_path -from [get_clocks spi_sclk] -to [get_clocks sys_clk]
+#
+# Or more precisely, if using proper synchronizer chains:
+# set_max_delay -from [get_registers {*cdc_sync_reg[0]*}] <sync_chain_delay>
+
+
+# ==============================================================================
+# Section 10: Clock Uncertainty and Jitter
+# ==============================================================================
+# Add clock uncertainty to account for SCLK jitter from PLL or register-based
+# clock generation. Quartus applies default uncertainty, but explicit values
+# improve accuracy.
+
+set_clock_uncertainty -setup 0.1 [get_clocks spi_sclk]
+set_clock_uncertainty -hold  0.05 [get_clocks spi_sclk]
+
+set_clock_uncertainty -setup 0.1 [get_clocks spi_sclk_virtual]
+set_clock_uncertainty -hold  0.05 [get_clocks spi_sclk_virtual]
+
+
+# ==============================================================================
+# Section 11: Timing Margin Report
+# ==============================================================================
+# Summary of timing budget at the default 50 MHz (20 ns period):
+#
+# --- Read Path (Flash → FPGA, MISO) ---
+# Setup check (rising edge capture, data launched on falling edge):
+#   Available window  = half_period - input_delay_max
+#                     = 10.0 - (0.3 + 7.0 + 0.3) = 2.4 ns
+#   This must be > FPGA input register tsu (~0.5 ns typical)
+#   Margin ≈ 1.9 ns  ✓
+#
+# Hold check:
+#   input_delay_min   = 0.1 + 1.0 + 0.1 = 1.2 ns
+#   This must be > FPGA input register th (~0.3 ns typical)
+#   Margin ≈ 0.9 ns  ✓
+#
+# --- Write Path (FPGA → Flash, MOSI) ---
+# Setup check:
+#   Available window  = half_period - output_delay_max
+#                     = 10.0 - (1.5 + 0.3 - 0.1) = 8.3 ns
+#   This must be > FPGA output register tco (~0.5 ns typical)
+#   Margin ≈ 7.8 ns  ✓
+#
+# Hold check:
+#   output_delay_min  = -(1.5) + 0.1 - 0.3 = -1.7 ns (negative → relaxed)
+#   Margin is comfortable  ✓
+#
+# At 133 MHz (7.5 ns period, 3.75 ns half-period):
+#   Read setup margin = 3.75 - 7.6 = -3.85 ns  ✗ (FAILS — need faster
+#     sampling strategy, e.g., PLL phase shift, DDIO input, or slower clock)
+#
+# Recommendation: For clock frequencies above ~66 MHz, use PLL-based clock
+# phase shifting or ALTDDIO_IN to center-align the capture edge with the
+# incoming data window.
+#
+# ==============================================================================
+
+puts "INFO: MX66U1G45G SDC constraints loaded successfully."
+puts "INFO: SPI clock period = $spi_clk_period ns ([expr {1000.0 / $spi_clk_period}] MHz)"
+puts "INFO: Read path input delay max  = $miso_input_delay_max ns"
+puts "INFO: Read path input delay min  = $miso_input_delay_min ns"
+puts "INFO: Write path output delay max = $mosi_output_delay_max ns"
+puts "INFO: Write path output delay min = $mosi_output_delay_min ns"
