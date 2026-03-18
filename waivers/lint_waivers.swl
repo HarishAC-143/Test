@@ -1,0 +1,57 @@
+##============================================================================
+## lint_waivers.swl -- SpyGlass Lint Waiver File
+##
+## Waivers suppress specific rule violations that have been reviewed and
+## deemed acceptable. Every waiver MUST include a -comment explaining
+## the rationale.
+##
+## Syntax:
+##   waiver -rule <RULE_ID> [-module <mod>] [-signal <sig>] [-file <file>]
+##          -comment "Reason for waiving"
+##
+## Wildcards (*) are supported in module, signal, and file names.
+##============================================================================
+
+##----------------------------------------------
+## Example 1: Spare signals intentionally unread
+##----------------------------------------------
+## Spare flip-flops are reserved for post-silicon ECO insertion.
+## They are driven but not connected to any logic -- by design.
+
+waiver -rule W_446 -signal "spare_*" \
+       -comment "Spare signals reserved for post-silicon ECO. Intentionally unread."
+
+waiver -rule W_456 -signal "spare_*" \
+       -comment "Spare signals reserved for post-silicon ECO. Intentionally unassigned."
+
+##----------------------------------------------
+## Example 2: Debug port left unconnected
+##----------------------------------------------
+## In production mode, the debug observation port is not connected.
+## The port exists for bring-up only.
+
+# waiver -rule W_164 -module "debug_observer" -signal "dbg_*" \
+#        -comment "Debug ports intentionally unconnected in production configuration."
+
+##----------------------------------------------
+## Example 3: Blocking assignment in specific test-harness module
+##----------------------------------------------
+## The test_driver module uses blocking assignments in sequential blocks
+## for simulation-only stimulus generation. Not synthesized.
+
+# waiver -rule W_213 -module "test_driver" \
+#        -comment "Simulation-only module, not synthesized. Blocking assignment is intentional."
+
+##----------------------------------------------
+## Example 4: Initial block in FPGA target
+##----------------------------------------------
+## For FPGA targets, initial blocks are synthesizable (mapped to INIT values).
+
+# waiver -rule SynthCheck-initial -module "*" -file "fpga_top.v" \
+#        -comment "FPGA target: initial blocks map to BRAM/FF INIT values."
+
+##----------------------------------------------
+## Example 5: Width mismatch accepted for backward compatibility
+##----------------------------------------------
+# waiver -rule W_116 -module "legacy_adapter" \
+#        -comment "Legacy interface has 16-bit port connected to 32-bit bus. Upper bits are don't-care."

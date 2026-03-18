@@ -1,0 +1,86 @@
+##============================================================================
+## SpyGlass Project File Template
+##
+## This file configures SpyGlass with design sources, constraints, waivers,
+## and analysis options. Use it as a starting point for your own projects.
+##
+## Usage:
+##   spyglass -project my_design.prj              (GUI mode)
+##   spyglass -batch -project my_design.prj        (batch mode)
+##============================================================================
+
+##----------------------------------------------
+## Design source files
+##----------------------------------------------
+## List all RTL files. SpyGlass supports Verilog, SystemVerilog, and VHDL.
+## Use -type to specify the language.
+
+read_file -type verilog {
+    ../examples/lint/lint_violations_fixed.v
+}
+
+read_file -type systemverilog {
+    ../examples/cdc/synchronizers/sync_2ff.sv
+    ../examples/cdc/synchronizers/sync_pulse.sv
+    ../examples/cdc/synchronizers/sync_bus_mux.sv
+    ../examples/cdc/synchronizers/async_fifo.sv
+    ../examples/cdc/synchronizers/reset_sync.sv
+    ../examples/cdc/synchronizers/handshake_sync.sv
+    ../examples/cdc/cdc_violations_fixed.v
+}
+
+##----------------------------------------------
+## Top-level module
+##----------------------------------------------
+set_option top cdc_violations_fixed
+
+##----------------------------------------------
+## Design constraints (SGDC)
+##----------------------------------------------
+read_file -type sgdc ../constraints/cdc.sgdc
+
+##----------------------------------------------
+## Waivers
+##----------------------------------------------
+read_file -type waiver ../waivers/lint_waivers.swl
+read_file -type waiver ../waivers/cdc_waivers.swl
+
+##----------------------------------------------
+## Tool options
+##----------------------------------------------
+
+## Enable SystemVerilog language features
+set_option enableSV yes
+
+## Allow mixed Verilog/SystemVerilog
+set_option language_mode mixed
+
+## Treat 'x as don't-care for case statements (matches synthesis semantics)
+set_option sgsyn yes
+
+## Memory threshold in KB (increase for large designs)
+set_option mthresh 100000
+
+## Include path for `include directives (add as needed)
+# set_option incdir {../rtl/include}
+
+## Define macros (equivalent to +define+ on command line)
+# set_option define {SYNTHESIS=1 FPGA_TARGET=0}
+
+##----------------------------------------------
+## Goal selection
+##----------------------------------------------
+## Uncomment the goal(s) you want to run.
+## You can run multiple goals in sequence.
+
+# current_goal lint/lint_rtl
+# run_goal
+
+# current_goal lint/lint_rtl_enhanced
+# run_goal
+
+# current_goal cdc/cdc_verify
+# run_goal
+
+# current_goal cdc/cdc_verify_struct
+# run_goal

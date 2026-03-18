@@ -1,0 +1,65 @@
+##============================================================================
+## cdc_waivers.swl -- SpyGlass CDC Waiver File
+##
+## Waivers for CDC violations that have been reviewed and are known-safe.
+## Every waiver MUST include a -comment with the rationale and, ideally,
+## a reference to the review ticket or design specification.
+##
+## Syntax:
+##   waiver -rule <RULE_ID>
+##          [-from <source_signal_or_module>]
+##          [-to   <dest_signal_or_module>]
+##          [-module <module>]
+##          -comment "Reason"
+##============================================================================
+
+##----------------------------------------------
+## Example 1: JTAG signals are quasi-static in functional mode
+##----------------------------------------------
+## JTAG TDI/TMS/TRST are only toggled during debug at very low frequency.
+## They are effectively quasi-static relative to the core clock.
+
+# waiver -rule Ac_unsync01 -from "u_jtag/tdi" -to "u_core/*" \
+#        -comment "JTAG TDI is quasi-static during functional mode (JIRA-1234)"
+
+# waiver -rule Ac_unsync01 -from "u_jtag/tms" -to "u_core/*" \
+#        -comment "JTAG TMS is quasi-static during functional mode (JIRA-1234)"
+
+##----------------------------------------------
+## Example 2: Pre-verified async FIFO
+##----------------------------------------------
+## The async_fifo module has been formally verified for CDC safety.
+## Internal Gray-coded pointer synchronization is correct by construction.
+
+# waiver -rule Ac_conv01 -module "async_fifo" \
+#        -comment "Gray-coded pointers: at most 1 bit changes per cycle. Formally verified (FV-567)."
+
+##----------------------------------------------
+## Example 3: Configuration registers written once at boot
+##----------------------------------------------
+## cfg_* registers are written by firmware during boot and never change
+## during normal operation. They are functionally quasi-static.
+
+# waiver -rule Ac_unsync01 -from "u_cfg/cfg_*" -to "*" \
+#        -comment "Configuration registers are quasi-static (written once at boot). See HW Spec 3.2."
+
+# waiver -rule Ac_multibit01 -from "u_cfg/cfg_*" -to "*" \
+#        -comment "Configuration bus is quasi-static. All bits stable before use. See HW Spec 3.2."
+
+##----------------------------------------------
+## Example 4: Reset synchronizer already present
+##----------------------------------------------
+## SpyGlass may not recognize custom reset synchronizer cells.
+## Waive after manual verification that reset_sync is correctly instantiated.
+
+# waiver -rule Ac_resetSync -module "cdc_violations_fixed" \
+#        -comment "Reset synchronizer (reset_sync) is instantiated. Verified in schematic review."
+
+##----------------------------------------------
+## Example 5: Convergence in status register (read-only, non-critical)
+##----------------------------------------------
+## The status register aggregates independently-synced bits for software
+## polling. Momentary inconsistency is acceptable (software re-reads).
+
+# waiver -rule Ac_conv01 -to "u_status/status_reg" \
+#        -comment "Status register: software polls and re-reads. Transient inconsistency is tolerable."

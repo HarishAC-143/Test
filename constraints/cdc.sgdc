@@ -1,0 +1,86 @@
+##============================================================================
+## cdc.sgdc -- SpyGlass Design Constraint File for CDC Analysis
+##
+## This file tells SpyGlass about the clock structure, clock relationships,
+## quasi-static signals, and pre-verified CDC blocks.
+##
+## SGDC is SpyGlass's native constraint format. You can also import SDC
+## files using: set_option sdc2sgdc yes
+##============================================================================
+
+##----------------------------------------------
+## 1. Select current design
+##----------------------------------------------
+current_design cdc_violations_fixed
+
+##----------------------------------------------
+## 2. Define primary clocks
+##----------------------------------------------
+## Syntax: clock -name <name> -period <ns> [get_ports <port>]
+##
+## The period is used for timing-aware checks (e.g., pulse width vs.
+## destination clock period). If unknown, use a nominal value.
+
+clock -name clk_a -period 10.0 [get_ports clk_a]    ;# 100 MHz
+clock -name clk_b -period  6.0 [get_ports clk_b]    ;# ~166 MHz
+clock -name clk_c -period 20.0 [get_ports clk_c]    ;#  50 MHz
+
+##----------------------------------------------
+## 3. Define clock relationships
+##----------------------------------------------
+## By default, SpyGlass assumes all clocks are asynchronous.
+## Explicitly declare relationships for clarity and to override defaults.
+##
+## -async : clocks are asynchronous (no phase relationship)
+## -sync  : clocks are synchronous  (derived from same source)
+
+clock_relationship -async clk_a clk_b
+clock_relationship -async clk_a clk_c
+clock_relationship -async clk_b clk_c
+
+## If you had a divided clock from clk_a:
+# clock -name clk_a_div2 -period 20.0 -source clk_a [get_pins u_divider/clk_out]
+# clock_relationship -sync clk_a clk_a_div2
+
+##----------------------------------------------
+## 4. Define resets
+##----------------------------------------------
+## Identifying resets helps SpyGlass analyze reset domain crossings (RDC).
+
+reset -name rst_a_n -value 0 [get_ports rst_a_n]    ;# active-low
+reset -name rst_b_n -value 0 [get_ports rst_b_n]
+reset -name rst_c_n -value 0 [get_ports rst_c_n]
+
+##----------------------------------------------
+## 5. Quasi-static signals
+##----------------------------------------------
+## Signals that change only during initialization or configuration and
+## remain stable during normal operation. SpyGlass will not flag CDC
+## crossings on these signals.
+
+# quasi_static -name cfg_mode [get_ports cfg_mode]
+# quasi_static -name boot_sel [get_ports boot_sel]
+
+##----------------------------------------------
+## 6. Abstract CDC modules
+##----------------------------------------------
+## Pre-verified IP blocks that SpyGlass should treat as black-box
+## synchronizers. This suppresses internal violations and reduces noise.
+
+# abstract -type cdc -from clk_wr -to clk_rd -module async_fifo
+
+##----------------------------------------------
+## 7. Synchronizer cell identification
+##----------------------------------------------
+## Tell SpyGlass which modules are synchronizer cells so it can
+## recognize them during CDC path analysis.
+
+# set_option sync_cell_identify yes
+# sync_cell -name sync_2ff
+
+##----------------------------------------------
+## 8. Additional options
+##----------------------------------------------
+## Import SDC constraints (if you have an SDC file from synthesis)
+# set_option sdc2sgdc yes
+# read_file -type sdc ../constraints/design.sdc
