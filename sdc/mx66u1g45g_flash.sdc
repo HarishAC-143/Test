@@ -305,7 +305,135 @@ set_input_delay \
 
 
 # ==============================================================================
-# Section 8: Multicycle Path Constraints
+# Section 8: Bus Contention Prevention — TX→RX Turnaround on SIO[0:3]
+# ==============================================================================
+# CRITICAL: In Dual/Quad I/O modes, SIO lines are bidirectional. During read
+# commands (2READ, 4READ, QREAD, 4DTRD), the FPGA first drives SIO[0:3] with
+# command/address, then the flash drives SIO[0:3] with read data. A
+# "turnaround" must occur between these phases.
+#
+# WHAT HAPPENS IF BOTH DRIVE SIMULTANEOUSLY (BUS CONTENTION):
+#
+#   1. SHOOT-THROUGH CURRENT: When the FPGA drives a pin HIGH while the flash
+#      drives it LOW (or vice versa), a low-impedance path forms from VCC to
+#      GND through both output stages. At 1.8 V with ~50 Ω driver impedance
+#      per side, this draws ~18 mA per pin. In Quad mode all 4 SIO pins may
+#      contend simultaneously → up to ~72 mA of wasted current on a 1.8 V
+#      rail. This causes localized heating in both the FPGA I/O bank and the
+#      flash die.
+#
+#   2. INDETERMINATE VOLTAGE: The SIO line settles at a voltage divider
+#      midpoint (~VCC/2 ≈ 0.9 V) which falls in the "forbidden zone" between
+#      VIL_max (0.35×VCC ≈ 0.63 V) and VIH_min (0.65×VCC ≈ 1.17 V). This
+#      causes:
+#        - Metastability in the FPGA input register (the input buffer sees
+#          neither a clean 0 nor a clean 1)
+#        - Excessive CMOS static current in both the FPGA and flash input
+#          buffers (both PMOS and NMOS partially conduct)
+#        - The first captured data byte will be corrupted
+#
+#   3. VCC DROOP / GROUND BOUNCE: The sudden current spike during contention
+#      causes transient droops on VCC and ground bounce on VSS. On a 1.8 V
+#      rail with 72 mA spike through ~2 nH package inductance at a ~1 ns edge:
+#        ΔV = L × dI/dt ≈ 2 nH × 72 mA / 1 ns ≈ 144 mV
+#      This 144 mV noise can:
+#        - Corrupt data on OTHER SIO lines (crosstalk through shared VCC/GND)
+#        - Cause glitches on adjacent FPGA I/O bank pins
+#        - Disturb the flash's internal state machine operation
+#
+#   4. SIGNAL RINGING AFTER CONTENTION: When one driver finally releases
+#      (tristates), the stored energy in the PCB trace inductance causes
+#      ringing (underdamped LC oscillation). This ringing can persist for
+#      2–5 ns and may violate tDVCH/tCHDX setup/hold windows at the flash
+#      or tCLQV/tCLQX timing at the FPGA on the next valid data edge.
+#
+#   5. LONG-TERM RELIABILITY DEGRADATION: Repeated contention events
+#      accelerate electromigration in metal traces and hot-carrier injection
+#      in I/O transistors. The device won't fail immediately but its lifetime
+#      degrades — particularly problematic for industrial/automotive designs
+#      that must meet 10+ year reliability targets.
+#
+# PROTOCOL-LEVEL TURNAROUND (from MX66U1G45G datasheet):
+#   - In 4READ (SPI mode): After 6 address cycles on SIO[0:3], there are
+#     2 "performance enhance indicator" cycles (still FPGA-driven), then
+#     configurable dummy cycles (default 6, adjustable 4–10). The flash
+#     begins driving on the first data-out cycle AFTER the dummy phase.
+#   - In QREAD (SPI mode): Command on SIO0 → address on SIO0 → dummy
+#     cycles → data out on SIO[0:3]. Only SIO0 needs turnaround.
+#   - In 4DTRD (DTR mode): Same as 4READ but data on both clock edges.
+#
+# RTL DESIGN REQUIREMENT:
+#   The FPGA must tristate (Hi-Z) its SIO output enables AT LEAST 1 full
+#   SCLK cycle before the flash begins driving. The dummy cycles exist
+#   precisely to provide this turnaround window.
+#
+#   Recommended: Deassert OE on the clock edge that begins the FIRST dummy
+#   cycle, giving (N_dummy × T_sclk_period) of dead time before the flash
+#   drives. For 4READ with 6 dummy cycles at 133 MHz, this is ~45 ns.
+#
+# SDC CONSTRAINTS FOR THE OE TURNAROUND PATH:
+# The output-enable control path from the SPI state machine to the SIO
+# tristate buffers must meet timing so that OE deasserts in the correct
+# SCLK cycle. Constrain this path with set_max_delay to prevent OE from
+# arriving late and causing contention.
+# ==============================================================================
+
+# ---- 8a: Output Enable Timing for SIO Tristate Control ----
+# The OE deassert must propagate from the SPI controller's state machine
+# register to the I/O output-enable pin within one SCLK period.
+#
+# Adjust the register path to match your RTL. The -from register is the
+# flip-flop that controls whether SIO is driven, and -to is the OE pin
+# of the I/O buffer.
+#
+# set_max_delay -from [get_registers {spi_master_inst|sio_oe_reg[*]}] \
+#               -to   [get_ports $flash_sio_ports] \
+#               [expr {$spi_clk_period - 1.0}]
+#
+# The "-1.0" margin ensures OE deasserts at least 1 ns before the next
+# clock edge, accounting for FPGA tristate buffer delay (tZX typically
+# 2–5 ns on Altera devices).
+
+# ---- 8b: False-Path the Turnaround Cycle Data ----
+# During the dummy/turnaround cycles, the data on SIO lines is don't-care.
+# Both input and output data paths are meaningless during this window.
+# If your RTL has a "turnaround" or "dummy_phase" state signal, you can
+# mark it as a false path to prevent Quartus from over-constraining:
+#
+# set_false_path -from [get_registers {spi_master_inst|is_turnaround_reg}] \
+#                -to   [get_ports $flash_sio_ports]
+
+# ---- 8c: OE and Data Mutual Exclusion ----
+# The SIO bidirectional ports have both input and output delay constraints
+# (Sections 5 and 6). Quartus must understand that input constraints apply
+# only when the FPGA is receiving (OE deasserted), and output constraints
+# only when the FPGA is driving (OE asserted). This is inherently handled
+# by Altera bidir I/O cell analysis — no extra SDC is needed. However, if
+# you see spurious timing violations on SIO ports, verify that the I/O
+# standard is set to bidirectional in the QSF:
+#
+#   set_instance_assignment -name IO_STANDARD "1.8 V" -to FLASH_SIO0
+#   set_instance_assignment -name IO_STANDARD "1.8 V" -to FLASH_SIO1
+#   set_instance_assignment -name IO_STANDARD "1.8 V" -to FLASH_SIO2
+#   set_instance_assignment -name IO_STANDARD "1.8 V" -to FLASH_SIO3
+
+# ---- 8d: Minimum Tristate Dead Time Check ----
+# Post-synthesis, verify in the TimeQuest timing report that the OE
+# deassert path meets the following requirement:
+#
+#   OE_deassert_delay + tZX(FPGA) < T_sclk_period
+#
+# Where tZX is the FPGA's tristate-to-high-impedance time (~2–5 ns).
+# Run this report after compilation:
+#
+#   report_timing -from [get_registers {*sio_oe*}] -to [get_ports {FLASH_SIO*}] -npaths 10
+#
+# If the slack is negative, the OE is arriving too late and bus contention
+# WILL occur on every read transaction.
+
+
+# ==============================================================================
+# Section 9: Multicycle Path Constraints
 # ==============================================================================
 # SPI interfaces often operate at a much slower frequency than the FPGA fabric.
 # If the SPI controller uses multicycle enables or the SCLK is divided from a
@@ -319,7 +447,7 @@ set_input_delay \
 
 
 # ==============================================================================
-# Section 9: False Path Constraints
+# Section 10: False Path Constraints
 # ==============================================================================
 # Static or quasi-static control signals that do not need to be timed at
 # full SPI clock speed.
@@ -342,7 +470,7 @@ set_input_delay \
 
 
 # ==============================================================================
-# Section 10: Clock Uncertainty and Jitter
+# Section 11: Clock Uncertainty and Jitter
 # ==============================================================================
 # Add clock uncertainty to account for SCLK jitter from PLL or register-based
 # clock generation. Quartus applies default uncertainty, but explicit values
@@ -356,7 +484,7 @@ set_clock_uncertainty -hold  0.05 [get_clocks spi_sclk_virtual]
 
 
 # ==============================================================================
-# Section 11: Timing Margin Report
+# Section 12: Timing Margin Report
 # ==============================================================================
 # Summary of timing budget at the default 50 MHz (20 ns period):
 #

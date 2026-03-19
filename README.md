@@ -134,6 +134,115 @@ check_timing
 | Write (FPGA → SIO) | Setup | ~1.5 ns | Pass |
 | Write (FPGA → SIO) | Hold | comfortable | Pass |
 
+## Bus Contention During TX→RX Switchover (Quad/Dual I/O)
+
+In Quad and Dual I/O modes, the SIO lines are **bidirectional**. During read commands (4READ, QREAD, 2READ, 4DTRD), the FPGA first drives SIO[0:3] with command/address bits, then the flash takes over and drives the same lines with read data. If both devices drive the bus simultaneously during this switchover, **bus contention** occurs.
+
+### What Happens During Contention
+
+```
+  FPGA drives HIGH ──►  ┌─────┐  ──── VCC (1.8V)
+                        │ SIO │
+  Flash drives LOW ──►  └─────┘  ──── GND
+
+  Result: Short-circuit path from VCC → FPGA buffer → SIO trace → Flash buffer → GND
+```
+
+| Problem | Description | Impact |
+|---------|-------------|--------|
+| **Shoot-through current** | Both output buffers form a resistive divider. At 1.8 V with ~50 Ω per driver, each contending pin draws ~18 mA. In Quad mode (4 pins), total is ~72 mA. | Localized heating in both FPGA I/O bank and flash die; wasted power budget. |
+| **Indeterminate voltage** | SIO line settles at ~VCC/2 ≈ 0.9 V, which falls in the "forbidden zone" between VIL_max (0.63 V) and VIH_min (1.17 V). | **Metastability** in the FPGA input register — captured data is corrupted. Excessive static current in CMOS input buffers on both devices. |
+| **VCC droop / ground bounce** | 72 mA current spike through ~2 nH package inductance at a ~1 ns edge produces ΔV ≈ L × dI/dt ≈ 144 mV noise on the power rail. | Corrupts data on OTHER SIO lines (crosstalk through shared VCC/GND). Glitches on adjacent FPGA I/O bank pins. May disturb flash internal state machine. |
+| **Signal ringing** | When one driver finally releases (tristates), stored energy in PCB trace inductance causes underdamped LC oscillation lasting 2–5 ns. | Ringing may violate tDVCH/tCHDX setup/hold at the flash or tCLQV/tCLQX timing at the FPGA on the next valid data edge. |
+| **Long-term reliability** | Repeated contention events accelerate electromigration and hot-carrier injection in I/O transistors. | No immediate failure, but device lifetime degrades — critical for designs targeting 10+ year industrial reliability. |
+
+### Timing Diagram — Contention Scenario
+
+```
+    SCLK  ─┐  ┌──┐  ┌──┐  ┌──┐  ┌──┐  ┌──┐  ┌──┐  ┌──┐  ┌──┐  ┌──┐  ┌──
+            └──┘  └──┘  └──┘  └──┘  └──┘  └──┘  └──┘  └──┘  └──┘  └──┘
+
+            ◄─── ADDR (FPGA drives) ───►◄ DUMMY ►◄── DATA (Flash drives) ──►
+
+    FPGA    ═══════════╗                 ║
+    OE                 ║  ← OE late! ──►║
+                       ╚════════════════╝
+                                         ┊
+    FPGA    ═══ADDR═══╗                  ┊
+    SIO drv           ╚══════════════════╝   (FPGA still driving!)
+
+    Flash                                ╔══DATA══DATA══DATA══DATA══
+    SIO drv ─────────────────────────────╝   (Flash starts driving!)
+
+                                         ┊◄──────►┊
+                                         CONTENTION
+                                         WINDOW
+                                         (both drive
+                                          the bus!)
+```
+
+### How Contention Happens in the MX66U1G45G Protocol
+
+For a **4READ** (Quad I/O Read) transaction in SPI mode:
+
+1. **Command phase** (8 SCLK cycles): FPGA drives SIO0 with command `EBh`
+2. **Address phase** (6 SCLK cycles): FPGA drives SIO[0:3] with 24-bit address
+3. **Mode/Dummy phase** (2 + N dummy SCLK cycles): First 2 cycles are "performance enhance indicator" (FPGA-driven), remaining are configurable dummy cycles
+4. **Data phase**: Flash drives SIO[0:3] with read data
+
+The turnaround happens between steps 3 and 4. The FPGA **must tristate its SIO output enables before the flash starts driving at the beginning of step 4**.
+
+Root causes of contention:
+- The FPGA's OE deassert logic in the SPI state machine is off-by-one in the dummy cycle counter
+- The OE control path has a pipeline delay that pushes deassert one SCLK cycle too late
+- The FPGA's physical tristate buffer has non-zero tZX (tristate delay, typically 2–5 ns on Altera)
+
+### RTL Prevention Strategies
+
+```
+         Recommended OE timing for 4READ with 6 dummy cycles:
+
+    SCLK  ──┐  ┌──┐  ┌──┐  ┌──┐  ┌──┐  ┌──┐  ┌──┐  ┌──┐  ┌──┐  ┌──┐  ┌──
+              └──┘  └──┘  └──┘  └──┘  └──┘  └──┘  └──┘  └──┘  └──┘  └──┘
+
+              ◄── ADDR ──►◄── P.E. ►◄───── DUMMY CYCLES ─────►◄── DATA ──►
+              FPGA drives  FPGA drv   Bus is Hi-Z (safe zone)   Flash drives
+
+    FPGA  ════════════════╗
+    OE                    ╚═══════════════════════════════════════════════════
+                          ↑
+                    OE deasserts at the START of the first dummy cycle
+                    (provides full dummy period of dead time)
+```
+
+1. **Deassert OE early**: Turn off SIO output enables at the **start of the first dummy cycle**, not at the end. This gives the full dummy period as dead time before the flash starts driving.
+
+2. **Add 1 guard cycle**: For extra safety, deassert OE one cycle before the dummy phase begins (during the last "performance enhance indicator" cycle). The flash ignores data during dummy cycles, so driving garbage for those cycles causes no harm, but contention during the data phase corrupts real data.
+
+3. **Use weak pull resistors**: Add 10 kΩ pull-ups on SIO[2] (WP#) and SIO[3] (HOLD#) to keep them at defined levels during Hi-Z turnaround. Consider 10 kΩ pull-ups on SIO[0:1] as well to prevent floating.
+
+4. **Verify in simulation**: Run gate-level simulation with SDF back-annotation and check that the OE deassertion arrives before the flash model starts driving. Use a bus contention checker in your simulator (`$bitstoreal`, Verilog `===` checks, or assertion-based verification).
+
+### SDC Constraints for OE Turnaround
+
+The SDC file (`sdc/mx66u1g45g_flash.sdc`, Section 8) includes constraints to ensure the OE control path meets timing. The key constraint is:
+
+```tcl
+set_max_delay -from [get_registers {spi_master_inst|sio_oe_reg[*]}] \
+              -to   [get_ports {FLASH_SIO*}] \
+              [expr {$spi_clk_period - 1.0}]
+```
+
+This ensures the OE deassert signal arrives at the I/O pin within one SCLK period minus 1 ns margin, preventing late deassertion that would cause contention.
+
+After compilation, verify with:
+
+```tcl
+report_timing -from [get_registers {*sio_oe*}] -to [get_ports {FLASH_SIO*}] -npaths 10
+```
+
+If the reported slack is negative, the OE path is too slow and contention **will** occur on every read transaction.
+
 ## Board Design Guidelines
 
 - Keep SPI traces short and matched in length (clock vs. data ≤ 0.5 ns skew).
