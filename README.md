@@ -1,6 +1,6 @@
-# Embedded C Programming Guide
+# Embedded C Programming Guide & UVM Reference
 
-A comprehensive tutorial covering Embedded C programming from basics to advanced topics, with practical, runnable examples targeting ARM Cortex-M microcontrollers.
+A comprehensive tutorial covering Embedded C programming from basics to advanced topics, with practical, runnable examples targeting ARM Cortex-M microcontrollers. Also includes a detailed UVM (Universal Verification Methodology) reference covering all UVM classes and their internal functions with annotated SystemVerilog examples.
 
 ## Contents
 
@@ -50,6 +50,47 @@ Complete, annotated source files in the [`examples/`](examples/) directory:
 | [`10_rtos_tasks.c`](examples/10_rtos_tasks.c) | FreeRTOS multitasking system | Queues, mutexes, semaphores, events |
 | [`11_memory_pool.c`](examples/11_memory_pool.c) | Fixed-block memory allocator | Free-list pool, multi-pool, packet buffers |
 
+### UVM (Universal Verification Methodology) Guide
+
+**[`uvm-classes-and-functions-guide.md`](uvm-classes-and-functions-guide.md)** — Detailed reference covering 24 topics:
+
+| # | Topic | Level |
+|---|---|---|
+| 1 | UVM Overview and Architecture | Beginner |
+| 2 | UVM Class Hierarchy | Beginner |
+| 3 | uvm_void | Beginner |
+| 4 | uvm_object — Core Data Methods | Intermediate |
+| 5 | uvm_transaction | Intermediate |
+| 6 | uvm_sequence_item | Intermediate |
+| 7 | uvm_sequence | Intermediate |
+| 8 | uvm_component | Intermediate |
+| 9 | uvm_driver | Intermediate |
+| 10 | uvm_monitor | Intermediate |
+| 11 | uvm_sequencer | Intermediate |
+| 12 | uvm_agent | Intermediate |
+| 13 | uvm_scoreboard | Intermediate |
+| 14 | uvm_env | Intermediate |
+| 15 | uvm_test | Intermediate |
+| 16 | UVM Phases In Detail | Advanced |
+| 17 | UVM Factory | Advanced |
+| 18 | UVM Configuration Database | Advanced |
+| 19 | UVM TLM Ports and Communication | Advanced |
+| 20 | UVM Reporting and Messaging | Intermediate |
+| 21 | UVM Register Layer (UVM RAL) | Advanced |
+| 22 | UVM Field Automation Macros | Intermediate |
+| 23 | UVM Callbacks | Advanced |
+| 24 | Complete UVM Testbench Example | All Levels |
+
+### UVM SystemVerilog Examples
+
+| File | Description | Key Concepts |
+|---|---|---|
+| [`12_uvm_sequence_item.sv`](examples/12_uvm_sequence_item.sv) | APB transaction with manual do_* hooks | do_copy, do_compare, do_print, do_pack, do_unpack, constraints |
+| [`13_uvm_sequence.sv`](examples/13_uvm_sequence.sv) | Six sequence patterns | Simple, response, composed, burst, stress, virtual sequence |
+| [`14_uvm_driver_monitor.sv`](examples/14_uvm_driver_monitor.sv) | APB driver and monitor with interface | Protocol timing, analysis ports, functional coverage |
+| [`15_uvm_agent_env_test.sv`](examples/15_uvm_agent_env_test.sv) | Complete agent/env/test hierarchy | Config objects, scoreboard, factory overrides, active/passive |
+| [`16_uvm_register_model.sv`](examples/16_uvm_register_model.sv) | UVM RAL register model | Fields, registers, blocks, adapter, predictor, access patterns |
+
 ## Target Platform
 
 The examples use STM32-style (ARM Cortex-M) register definitions. The concepts and patterns apply broadly to any embedded microcontroller, including:
@@ -62,13 +103,25 @@ The examples use STM32-style (ARM Cortex-M) register definitions. The concepts a
 
 ## How to Use
 
+### Embedded C
 1. **Read the guide** — Start with [`embedded-c-programming-guide.md`](embedded-c-programming-guide.md) for conceptual understanding.
-2. **Study the examples** — Each file in `examples/` is self-contained with detailed comments.
+2. **Study the examples** — Each file in `examples/` (01–11) is self-contained with detailed comments.
 3. **Adapt to your platform** — Replace register addresses and peripheral definitions with those from your MCU's reference manual or vendor HAL.
+
+### UVM
+1. **Read the UVM guide** — [`uvm-classes-and-functions-guide.md`](uvm-classes-and-functions-guide.md) covers every major UVM class with method tables and code.
+2. **Study the examples** — Files 12–16 in `examples/` demonstrate each UVM concept with complete, annotated SystemVerilog code.
+3. **Use as reference** — The guide includes quick-reference tables for macros, phases, command-line arguments, and TLM port rules.
 
 ## Prerequisites
 
+### Embedded C
 - Basic knowledge of C programming
 - A text editor or IDE (VS Code, STM32CubeIDE, Keil, IAR)
 - An ARM cross-compiler (arm-none-eabi-gcc) for compiling examples
 - A development board (optional, but recommended for hands-on practice)
+
+### UVM
+- Knowledge of SystemVerilog (classes, interfaces, constraints, randomization)
+- A SystemVerilog simulator with UVM support (Synopsys VCS, Cadence Xcelium, Siemens Questa, or Aldec Riviera-PRO)
+- UVM library (typically bundled with the simulator, or available from Accellera)
