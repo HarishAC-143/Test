@@ -1,8 +1,86 @@
-# Embedded C Programming Guide
+# Hardware Engineering Tutorials
+
+Comprehensive tutorials covering Embedded C programming and SystemVerilog/UVM verification, with practical, annotated examples.
+
+---
+
+## SystemVerilog Classes & UVM Tutorial
+
+**[`systemverilog-uvm-tutorial.md`](systemverilog-uvm-tutorial.md)** — Full tutorial covering 35 topics across three parts:
+
+### Part I — SystemVerilog Classes
+
+| # | Topic | Level |
+|---|---|---|
+| 1 | Why Classes in Hardware Verification? | Beginner |
+| 2 | Class Fundamentals | Beginner |
+| 3 | The Constructor — `new()` | Beginner |
+| 4 | Properties and Methods | Beginner |
+| 5 | Access Control — `local` and `protected` | Beginner |
+| 6 | Inheritance | Intermediate |
+| 7 | Polymorphism and Virtual Methods | Intermediate |
+| 8 | Abstract Classes and Pure Virtual Methods | Intermediate |
+| 9 | Parameterized (Generic) Classes | Intermediate |
+| 10 | Static Members | Intermediate |
+| 11 | Copying Objects — Shallow vs Deep | Intermediate |
+| 12 | Randomization and Constraints | Intermediate |
+| 13 | Typedef, Forward Declarations, and Scope Resolution | Intermediate |
+| 14 | Class Casting — `$cast` | Intermediate |
+
+### Part II — UVM (Universal Verification Methodology)
+
+| # | Topic | Level |
+|---|---|---|
+| 15 | Introduction to UVM | Beginner |
+| 16 | UVM Class Hierarchy Overview | Beginner |
+| 17 | `uvm_object` — The Root of Everything | Intermediate |
+| 18 | `uvm_component` — Structural Backbone | Intermediate |
+| 19 | UVM Phasing Mechanism | Intermediate |
+| 20 | `uvm_transaction` and `uvm_sequence_item` | Intermediate |
+| 21 | `uvm_sequence` — Stimulus Generation | Intermediate |
+| 22 | `uvm_driver` — Driving the DUT | Intermediate |
+| 23 | `uvm_sequencer` — Arbitration | Intermediate |
+| 24 | `uvm_monitor` — Passive Observation | Intermediate |
+| 25 | `uvm_agent` — Grouping Driver, Sequencer, Monitor | Intermediate |
+| 26 | `uvm_scoreboard` — Checking Results | Intermediate |
+| 27 | `uvm_env` — Top-Level Environment | Intermediate |
+| 28 | `uvm_test` — Test Entry Point | Intermediate |
+| 29 | The UVM Factory | Advanced |
+| 30 | Configuration Database — `uvm_config_db` | Advanced |
+| 31 | TLM Ports and Communication | Advanced |
+| 32 | UVM Reporting and Messaging | Intermediate |
+| 33 | Field Automation Macros — `uvm_field_*` | Advanced |
+| 34 | Register Abstraction Layer (RAL) Overview | Advanced |
+
+### Part III — Complete Example
+
+| # | Topic | Level |
+|---|---|---|
+| 35 | Complete UVM Testbench Walkthrough | Advanced |
+
+### SystemVerilog / UVM Examples
+
+Complete, annotated source files in the [`examples/sv_uvm/`](examples/sv_uvm/) directory:
+
+| File | Description | Key Concepts |
+|---|---|---|
+| [`01_sv_class_basics.sv`](examples/sv_uvm/01_sv_class_basics.sv) | Class fundamentals and access control | Constructor, `this`, `local`, `protected` |
+| [`02_sv_inheritance_polymorphism.sv`](examples/sv_uvm/02_sv_inheritance_polymorphism.sv) | Inheritance, polymorphism, abstract classes | `extends`, `virtual`, `super`, `$cast` |
+| [`03_sv_parameterized_classes.sv`](examples/sv_uvm/03_sv_parameterized_classes.sv) | Generics, static members, singleton | Parameterized classes, `static`, extern |
+| [`04_sv_randomization.sv`](examples/sv_uvm/04_sv_randomization.sv) | Constrained-random verification | `rand`, `randc`, constraints, distributions |
+| [`05_sv_copy_clone_compare.sv`](examples/sv_uvm/05_sv_copy_clone_compare.sv) | Object copying and comparison | Shallow vs deep copy, equality checks |
+| [`06_uvm_object_methods.sv`](examples/sv_uvm/06_uvm_object_methods.sv) | UVM object hooks: copy, compare, print | `do_copy`, `do_compare`, `do_print`, `clone` |
+| [`07_uvm_factory_config.sv`](examples/sv_uvm/07_uvm_factory_config.sv) | UVM factory and config database | Factory overrides, `uvm_config_db` |
+| [`08_uvm_sequence_driver.sv`](examples/sv_uvm/08_uvm_sequence_driver.sv) | Sequences, sequencer, and driver flow | `start_item`/`finish_item`, layered sequences |
+| [`09_uvm_agent_env.sv`](examples/sv_uvm/09_uvm_agent_env.sv) | Agent, environment, and scoreboard | Active/passive agent, analysis ports |
+| [`10_uvm_tlm_analysis.sv`](examples/sv_uvm/10_uvm_tlm_analysis.sv) | TLM communication patterns | Analysis ports/imps, FIFO, broadcast |
+| [`11_uvm_complete_testbench.sv`](examples/sv_uvm/11_uvm_complete_testbench.sv) | Full APB memory testbench | All UVM components, DUT, coverage |
+
+---
+
+## Embedded C Programming Guide
 
 A comprehensive tutorial covering Embedded C programming from basics to advanced topics, with practical, runnable examples targeting ARM Cortex-M microcontrollers.
-
-## Contents
 
 ### Tutorial Guide
 
@@ -32,7 +110,7 @@ A comprehensive tutorial covering Embedded C programming from basics to advanced
 | 20 | Debugging and Testing | Advanced |
 | 21 | Coding Standards and Best Practices | All Levels |
 
-### Practical Examples
+### Embedded C Examples
 
 Complete, annotated source files in the [`examples/`](examples/) directory:
 
