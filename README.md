@@ -1,12 +1,16 @@
-# Embedded C Programming Guide
+# Embedded Systems & Verification Guides
 
-A comprehensive tutorial covering Embedded C programming from basics to advanced topics, with practical, runnable examples targeting ARM Cortex-M microcontrollers.
+Comprehensive tutorials covering Embedded C programming and UVM verification methodology, with practical, annotated examples.
 
 ## Contents
 
-### Tutorial Guide
+### Tutorial Guides
 
-**[`embedded-c-programming-guide.md`](embedded-c-programming-guide.md)** — Full tutorial covering 21 topics:
+**[`embedded-c-programming-guide.md`](embedded-c-programming-guide.md)** — Full Embedded C tutorial covering 21 topics:
+
+**[`uvm-config-db-and-factory-guide.md`](uvm-config-db-and-factory-guide.md)** — Deep-dive into UVM's config_db and factory mechanisms (18 topics)
+
+### Embedded C Topics
 
 | # | Topic | Level |
 |---|---|---|
@@ -36,6 +40,8 @@ A comprehensive tutorial covering Embedded C programming from basics to advanced
 
 Complete, annotated source files in the [`examples/`](examples/) directory:
 
+#### Embedded C Examples
+
 | File | Description | Key Concepts |
 |---|---|---|
 | [`01_gpio_driver.c`](examples/01_gpio_driver.c) | GPIO driver with button debounce | Structure overlays, pin configuration, EXTI |
@@ -49,6 +55,14 @@ Complete, annotated source files in the [`examples/`](examples/) directory:
 | [`09_state_machine.c`](examples/09_state_machine.c) | FSM patterns (switch, table-driven) | Traffic light, thermostat controller |
 | [`10_rtos_tasks.c`](examples/10_rtos_tasks.c) | FreeRTOS multitasking system | Queues, mutexes, semaphores, events |
 | [`11_memory_pool.c`](examples/11_memory_pool.c) | Fixed-block memory allocator | Free-list pool, multi-pool, packet buffers |
+
+#### UVM Verification Examples
+
+| File | Description | Key Concepts |
+|---|---|---|
+| [`12_uvm_config_db.sv`](examples/12_uvm_config_db.sv) | APB testbench with config_db | Virtual interfaces, config objects, scoping, precedence |
+| [`13_uvm_factory.sv`](examples/13_uvm_factory.sv) | Factory registration and overrides | Type/instance overrides, override chaining, polymorphism |
+| [`14_uvm_config_db_factory_combined.sv`](examples/14_uvm_config_db_factory_combined.sv) | SPI testbench using both mechanisms | Test customization, conditional builds, full UVM flow |
 
 ## Target Platform
 
