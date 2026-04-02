@@ -1,10 +1,12 @@
-# Embedded C Programming Guide
+# Embedded Systems Programming Guides
 
-A comprehensive tutorial covering Embedded C programming from basics to advanced topics, with practical, runnable examples targeting ARM Cortex-M microcontrollers.
+Comprehensive tutorials covering Embedded C programming and FreeRTOS, with practical, runnable examples targeting ARM Cortex-M microcontrollers.
 
 ## Contents
 
-### Tutorial Guide
+### Tutorial Guides
+
+#### 1. Embedded C Programming
 
 **[`embedded-c-programming-guide.md`](embedded-c-programming-guide.md)** — Full tutorial covering 21 topics:
 
@@ -32,9 +34,35 @@ A comprehensive tutorial covering Embedded C programming from basics to advanced
 | 20 | Debugging and Testing | Advanced |
 | 21 | Coding Standards and Best Practices | All Levels |
 
+#### 2. FreeRTOS Comprehensive Guide
+
+**[`freertos-guide.md`](freertos-guide.md)** — Deep-dive tutorial covering 17 topics with kernel internals:
+
+| # | Topic | Level |
+|---|---|---|
+| 1 | Introduction to FreeRTOS | Beginner |
+| 2 | Architecture and Kernel Internals | Intermediate |
+| 3 | Task Management | Beginner |
+| 4 | The FreeRTOS Scheduler | Intermediate |
+| 5 | Queues | Beginner |
+| 6 | Semaphores | Intermediate |
+| 7 | Mutexes | Intermediate |
+| 8 | Event Groups | Intermediate |
+| 9 | Software Timers | Intermediate |
+| 10 | Task Notifications | Intermediate |
+| 11 | Stream Buffers and Message Buffers | Intermediate |
+| 12 | Memory Management | Advanced |
+| 13 | Interrupt Management | Advanced |
+| 14 | Low-Power Support (Tickless Idle) | Advanced |
+| 15 | Debugging, Tracing, and Best Practices | Advanced |
+| 16 | FreeRTOS Configuration Reference | Reference |
+| 17 | Common Pitfalls and How to Avoid Them | All Levels |
+
 ### Practical Examples
 
 Complete, annotated source files in the [`examples/`](examples/) directory:
+
+#### Embedded C Examples
 
 | File | Description | Key Concepts |
 |---|---|---|
@@ -49,6 +77,17 @@ Complete, annotated source files in the [`examples/`](examples/) directory:
 | [`09_state_machine.c`](examples/09_state_machine.c) | FSM patterns (switch, table-driven) | Traffic light, thermostat controller |
 | [`10_rtos_tasks.c`](examples/10_rtos_tasks.c) | FreeRTOS multitasking system | Queues, mutexes, semaphores, events |
 | [`11_memory_pool.c`](examples/11_memory_pool.c) | Fixed-block memory allocator | Free-list pool, multi-pool, packet buffers |
+
+#### FreeRTOS Examples
+
+| File | Description | Key Concepts |
+|---|---|---|
+| [`12_freertos_tasks.c`](examples/12_freertos_tasks.c) | Task creation, priorities, delays, stack monitoring | `xTaskCreate`, `vTaskDelay`, `vTaskDelayUntil`, `vTaskSuspend`, `vTaskResume`, `uxTaskGetStackHighWaterMark` |
+| [`13_freertos_queues.c`](examples/13_freertos_queues.c) | Multi-producer queues, mailbox, queue sets, ISR queues | `xQueueCreate`, `xQueueSend`, `xQueueReceive`, `xQueueOverwrite`, `xQueueCreateSet` |
+| [`14_freertos_semaphores.c`](examples/14_freertos_semaphores.c) | Binary/counting semaphores, mutexes, priority inheritance | `xSemaphoreCreateBinary`, `xSemaphoreCreateMutex`, `xSemaphoreCreateRecursiveMutex`, gatekeeper pattern |
+| [`15_freertos_timers_events.c`](examples/15_freertos_timers_events.c) | Software timers, event groups, barrier sync | `xTimerCreate`, `xEventGroupCreate`, `xEventGroupWaitBits`, `xEventGroupSync` |
+| [`16_freertos_notifications.c`](examples/16_freertos_notifications.c) | Task notifications, stream buffers, message buffers | `xTaskNotify`, `ulTaskNotifyTake`, `xStreamBufferCreate`, `xMessageBufferCreate` |
+| [`17_freertos_iot_app.c`](examples/17_freertos_iot_app.c) | Complete IoT sensor monitoring application | All major FreeRTOS primitives in a production-like architecture |
 
 ## Target Platform
 
